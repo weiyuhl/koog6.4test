@@ -25,14 +25,6 @@ import ai.koog.agents.core.dsl.extension.onMultipleToolCalls
 import ai.koog.agents.core.dsl.extension.requestLLMMultiple
 import ai.koog.agents.core.dsl.extension.sendMultipleToolResults
 import ai.koog.agents.core.environment.ReceivedToolResult
-import ai.koog.agents.core.feature.debugger.Debugger
-import ai.koog.agents.core.feature.debugger.DebuggerConfig
-import ai.koog.agents.core.feature.message.FeatureMessage
-import ai.koog.agents.core.feature.message.FeatureMessageProcessor
-import ai.koog.agents.core.feature.model.FeatureStringMessage
-import ai.koog.agents.core.feature.remote.client.FeatureMessageRemoteClient
-import ai.koog.agents.core.feature.remote.client.config.DefaultClientConnectionConfig
-import ai.koog.agents.core.feature.remote.server.config.DefaultServerConnectionConfig
 import ai.koog.agents.core.tools.ToolRegistry
 import ai.koog.agents.features.eventHandler.feature.EventHandler
 import ai.koog.agents.features.eventHandler.feature.EventHandlerConfig
@@ -98,7 +90,6 @@ object KoogAgentRunner {
         request.maxIterations?.let { recordEvent("Max iterations：$it") }
         request.systemPrompt.takeIf { it.isNotBlank() }?.let { recordEvent("自定义 system prompt：${it.take(120)}") }
         request.baseUrl.takeIf { it.isNotBlank() }?.let { recordEvent("Base URL：$it") }
-        runtimeCollector.captureFeatureConfig(request.featureConfig)
 
         if (!request.provider.isSupportedOnAndroid) {
             throw UnsupportedOperationException(
@@ -109,6 +100,14 @@ object KoogAgentRunner {
         val model = resolveModel(request.provider, request.modelId)
         val agentTemperature = request.temperature ?: 0.2
         val agentMaxIterations = request.maxIterations ?: 50
+        val runtimeTools = assembleRuntimeToolAssembly(request)
+        runtimeCollector.captureAvailableTools(runtimeTools.availableToolNames, runtimeTools.toolSourceSummaries)
+        recordEvent("已装载工具源：${runtimeTools.toolSourceSummaries.joinToString(" · ")}")
+        if (runtimeTools.availableToolNames.isNotEmpty()) {
+            val preview = runtimeTools.availableToolNames.take(12).joinToString()
+            val suffix = if (runtimeTools.availableToolNames.size > 12) " …" else ""
+            recordEvent("可用工具：$preview$suffix")
+        }
 
         buildExecutor(request, model).use { executor ->
             when (request.runtimePreset) {
@@ -117,13 +116,13 @@ object KoogAgentRunner {
                         promptExecutor = executor,
                         strategy = streamingWithToolsStrategy(),
                         llmModel = model,
-                        systemPrompt = buildSystemPrompt(request),
+                        systemPrompt = buildSystemPrompt(request, runtimeTools.promptAddendum),
                         temperature = agentTemperature,
-                        toolRegistry = demoToolRegistry(),
+                        toolRegistry = runtimeTools.toolRegistry,
                         maxIterations = agentMaxIterations,
                     ) { installGraphStudioFeatures(request, ::recordEvent, onTextDelta, runtimeCollector) }
 
-                    val responses = runWithRemoteClientIfNeeded(request, runtimeCollector, ::recordEvent) { agent.run(request.userPrompt) }
+                    val responses = agent.run(request.userPrompt)
                     val answer = responses
                         .filterIsInstance<Message.Assistant>()
                         .joinToString(separator = "\n") { it.content }
@@ -135,12 +134,13 @@ object KoogAgentRunner {
                     val agent = AIAgent(
                         promptExecutor = executor,
                         llmModel = model,
-                        systemPrompt = buildSystemPrompt(request),
+                        systemPrompt = buildSystemPrompt(request, runtimeTools.promptAddendum),
                         temperature = agentTemperature,
+                        toolRegistry = runtimeTools.toolRegistry,
                         maxIterations = agentMaxIterations,
                     ) { installGraphStudioFeatures(request, ::recordEvent, onTextDelta, runtimeCollector) }
 
-                    val answer = runWithRemoteClientIfNeeded(request, runtimeCollector, ::recordEvent) { agent.run(request.userPrompt) }
+                    val answer = agent.run(request.userPrompt)
                     AgentExecutionResult(answer = answer, events = events, runtimeSnapshot = runtimeCollector.build(answer))
                 }
 
@@ -156,13 +156,13 @@ object KoogAgentRunner {
                         promptExecutor = executor,
                         strategy = singleRunStrategy(toolCallsMode),
                         llmModel = model,
-                        systemPrompt = buildSystemPrompt(request),
+                        systemPrompt = buildSystemPrompt(request, runtimeTools.promptAddendum),
                         temperature = agentTemperature,
-                        toolRegistry = demoToolRegistry(),
+                        toolRegistry = runtimeTools.toolRegistry,
                         maxIterations = agentMaxIterations,
                     ) { installGraphStudioFeatures(request, ::recordEvent, onTextDelta, runtimeCollector) }
 
-                    val answer = runWithRemoteClientIfNeeded(request, runtimeCollector, ::recordEvent) { agent.run(request.userPrompt) }
+                    val answer = agent.run(request.userPrompt)
                     AgentExecutionResult(answer = answer, events = events, runtimeSnapshot = runtimeCollector.build(answer))
                 }
 
@@ -171,13 +171,13 @@ object KoogAgentRunner {
                         promptExecutor = executor,
                         strategy = subgraphToolsStrategy(parallelTools = false),
                         llmModel = model,
-                        systemPrompt = buildSystemPrompt(request),
+                        systemPrompt = buildSystemPrompt(request, runtimeTools.promptAddendum),
                         temperature = agentTemperature,
-                        toolRegistry = demoToolRegistry(),
+                        toolRegistry = runtimeTools.toolRegistry,
                         maxIterations = agentMaxIterations,
                     ) { installGraphStudioFeatures(request, ::recordEvent, onTextDelta, runtimeCollector) }
 
-                    val answer = runWithRemoteClientIfNeeded(request, runtimeCollector, ::recordEvent) { agent.run(request.userPrompt) }
+                    val answer = agent.run(request.userPrompt)
                     AgentExecutionResult(answer = answer, events = events, runtimeSnapshot = runtimeCollector.build(answer))
                 }
 
@@ -186,12 +186,13 @@ object KoogAgentRunner {
                         promptExecutor = executor,
                         strategy = parallelSignalMergeStrategy(),
                         llmModel = model,
-                        systemPrompt = buildSystemPrompt(request),
+                        systemPrompt = buildSystemPrompt(request, runtimeTools.promptAddendum),
                         temperature = agentTemperature,
+                        toolRegistry = runtimeTools.toolRegistry,
                         maxIterations = agentMaxIterations,
                     ) { installGraphStudioFeatures(request, ::recordEvent, onTextDelta, runtimeCollector) }
 
-                    val answer = runWithRemoteClientIfNeeded(request, runtimeCollector, ::recordEvent) { agent.run(request.userPrompt) }
+                    val answer = agent.run(request.userPrompt)
                     AgentExecutionResult(answer = answer, events = events, runtimeSnapshot = runtimeCollector.build(answer))
                 }
 
@@ -200,13 +201,13 @@ object KoogAgentRunner {
                         promptExecutor = executor,
                         strategy = conditionalRoutingStrategy(),
                         llmModel = model,
-                        systemPrompt = buildSystemPrompt(request),
+                        systemPrompt = buildSystemPrompt(request, runtimeTools.promptAddendum),
                         temperature = agentTemperature,
-                        toolRegistry = demoToolRegistry(),
+                        toolRegistry = runtimeTools.toolRegistry,
                         maxIterations = agentMaxIterations,
                     ) { installGraphStudioFeatures(request, ::recordEvent, onTextDelta, runtimeCollector) }
 
-                    val answer = runWithRemoteClientIfNeeded(request, runtimeCollector, ::recordEvent) { agent.run(request.userPrompt) }
+                    val answer = agent.run(request.userPrompt)
                     AgentExecutionResult(answer = answer, events = events, runtimeSnapshot = runtimeCollector.build(answer))
                 }
 
@@ -214,9 +215,9 @@ object KoogAgentRunner {
                     val agent = AIAgent(
                         promptExecutor = executor,
                         llmModel = model,
-                        systemPrompt = buildSystemPrompt(request),
+                        systemPrompt = buildSystemPrompt(request, runtimeTools.promptAddendum),
                         temperature = agentTemperature,
-                        toolRegistry = demoToolRegistry(),
+                        toolRegistry = runtimeTools.toolRegistry,
                         maxIterations = agentMaxIterations,
                         strategy = functionalStrategy<String, String>(name = "functional_tools_loop") { input ->
                             var responses = requestLLMMultiple(input)
@@ -229,7 +230,7 @@ object KoogAgentRunner {
                         },
                     ) { installFunctionalStudioFeatures(request, ::recordEvent, onTextDelta, runtimeCollector) }
 
-                    val answer = runWithRemoteClientIfNeeded(request, runtimeCollector, ::recordEvent) { agent.run(request.userPrompt) }
+                    val answer = agent.run(request.userPrompt)
                     AgentExecutionResult(answer = answer, events = events, runtimeSnapshot = runtimeCollector.build(answer))
                 }
             }
@@ -251,9 +252,6 @@ object KoogAgentRunner {
                 runtimeCollector = runtimeCollector,
             ),
         )
-        if (request.featureConfig.shouldInstallDebuggerFeature()) {
-            install(Debugger, debuggerFeatureConfig(request, runtimeCollector))
-        }
     }
 
     @OptIn(ExperimentalAgentsApi::class)
@@ -271,68 +269,6 @@ object KoogAgentRunner {
                 runtimeCollector = runtimeCollector,
             ),
         )
-        if (request.featureConfig.shouldInstallDebuggerFeature()) {
-            install(Debugger, debuggerFeatureConfig(request, runtimeCollector))
-        }
-    }
-
-    @OptIn(ExperimentalAgentsApi::class)
-    private fun debuggerFeatureConfig(
-        request: AgentRequest,
-        runtimeCollector: RuntimeSnapshotCollector,
-    ): DebuggerConfig.() -> Unit = {
-        request.featureConfig.debuggerPort?.let(::setPort)
-        request.featureConfig.debuggerWaitMillis?.let { setAwaitInitialConnectionTimeout(it.milliseconds) }
-        if (request.featureConfig.localWriterEnabled) {
-            addMessageProcessor(StudioFeatureMessageProcessor(source = "local-writer", runtimeCollector = runtimeCollector))
-        }
-    }
-
-    private suspend fun <T> runWithRemoteClientIfNeeded(
-        request: AgentRequest,
-        runtimeCollector: RuntimeSnapshotCollector,
-        recordEvent: (String) -> Unit,
-        block: suspend () -> T,
-    ): T = coroutineScope {
-        val featureConfig = request.featureConfig
-        if (!featureConfig.remoteClientEnabled) {
-            return@coroutineScope block()
-        }
-
-        val host = featureConfig.remoteHost.ifBlank { DefaultClientConnectionConfig.DEFAULT_HOST }
-        val port = featureConfig.remotePort ?: DefaultClientConnectionConfig.DEFAULT_PORT
-        val target = "$host:$port"
-        val remoteClient = FeatureMessageRemoteClient(
-            connectionConfig = DefaultClientConnectionConfig(host = host, port = port),
-            scope = this,
-        )
-        var collectorJob: Job? = null
-
-        try {
-            try {
-                remoteClient.connect()
-                remoteClient.healthCheck()
-                runtimeCollector.captureRemoteClientState(target = target, connected = true, note = "connected")
-                recordEvent("Remote client 已连接：$target")
-                collectorJob = launch {
-                    for (message in remoteClient.receivedMessages) {
-                        runtimeCollector.captureFeatureMessage(source = "remote-client", message = message)
-                    }
-                }
-            } catch (error: Throwable) {
-                runtimeCollector.captureRemoteClientState(
-                    target = target,
-                    connected = false,
-                    note = error.message ?: error::class.simpleName ?: "connect_failed",
-                )
-                recordEvent("Remote client 连接失败：$target")
-            }
-
-            block()
-        } finally {
-            collectorJob?.cancel()
-            runCatching { remoteClient.close() }
-        }
     }
 
     private fun commonEventHandlers(
@@ -618,17 +554,17 @@ object KoogAgentRunner {
         edge(clarifyRequest forwardTo nodeFinish)
     }
 
-    private fun demoToolRegistry(): ToolRegistry = ToolRegistry {
-        tools(demoToolsCatalog())
-    }
-
-    private fun buildSystemPrompt(request: AgentRequest): String =
+    private fun buildSystemPrompt(request: AgentRequest, runtimeToolPrompt: String): String =
         buildString {
             appendLine("你是集成在 Android 应用中的 Koog Agent 演示助手。")
             appendLine("当前供应商：${request.provider.displayName}。")
             appendLine("当前模型：${request.modelId}。")
             appendLine("当前运行预设：${request.runtimePreset.title}。")
             appendLine("当用户询问当前时间或数学计算时，请优先调用工具，不要直接心算或伪造时间。")
+            runtimeToolPrompt.takeIf { it.isNotBlank() }?.let {
+                appendLine("这里列出的工具都已经真实装载到本次运行，请按工具说明优先调用：")
+                appendLine(it)
+            }
             appendLine("其它问题请简洁回答，并明确说明你当前使用的是哪个供应商。")
             request.systemPrompt.takeIf { it.isNotBlank() }?.let {
                 appendLine()
@@ -833,13 +769,8 @@ object KoogAgentRunner {
         private var historyCount: Int = 0
         private val historyPreview = mutableListOf<AgentHistoryEntry>()
         private val storageEntries = mutableListOf<AgentStorageEntry>()
-        private var localWriterEnabled: Boolean = request.featureConfig.localWriterEnabled
-        private var debuggerEnabled: Boolean = request.featureConfig.shouldInstallDebuggerFeature()
-        private var debuggerPort: Int? = request.featureConfig.debuggerPort ?: DefaultServerConnectionConfig.DEFAULT_PORT
-        private var remoteClientEnabled: Boolean = request.featureConfig.remoteClientEnabled
-        private var remoteClientTarget: String? = null
-        private var remoteClientConnected: Boolean = false
-        private val featureMessages = mutableListOf<AgentFeatureMessageEntry>()
+        private val availableToolNames = linkedSetOf<String>()
+        private val toolSourceSummaries = mutableListOf<String>()
         private val timeline = mutableListOf<AgentTimelineEntry>()
 
         fun captureAgentStarting(runId: String, agentId: String, strategyName: String, path: String) {
@@ -885,40 +816,19 @@ object KoogAgentRunner {
             )
         }
 
-        fun captureFeatureConfig(config: AgentFeatureConfig) {
-            localWriterEnabled = config.localWriterEnabled
-            debuggerEnabled = config.shouldInstallDebuggerFeature()
-            debuggerPort = config.debuggerPort ?: DefaultServerConnectionConfig.DEFAULT_PORT
-            remoteClientEnabled = config.remoteClientEnabled
-            if (remoteClientEnabled) {
-                val host = config.remoteHost.ifBlank { DefaultClientConnectionConfig.DEFAULT_HOST }
-                val port = config.remotePort ?: DefaultClientConnectionConfig.DEFAULT_PORT
-                remoteClientTarget = "$host:$port"
+        fun captureAvailableTools(names: List<String>, sourceSummaries: List<String>) {
+            availableToolNames.clear()
+            availableToolNames += names
+            toolSourceSummaries.clear()
+            toolSourceSummaries += sourceSummaries
+            if (names.isNotEmpty()) {
+                captureTimeline(
+                    category = "tool-registry",
+                    name = "loaded",
+                    detail = "${sourceSummaries.joinToString(" · ")} · tools=${names.size}",
+                    executionPath = null,
+                )
             }
-        }
-
-        fun captureRemoteClientState(target: String, connected: Boolean, note: String) {
-            remoteClientTarget = target
-            remoteClientConnected = connected
-            captureTimeline(
-                category = "remote",
-                name = if (connected) "connected" else "connect_failed",
-                detail = note,
-                executionPath = null,
-            )
-        }
-
-        fun captureFeatureMessage(source: String, message: FeatureMessage) {
-            val detail = when (message) {
-                is FeatureStringMessage -> message.message
-                else -> compactText(message, 200)
-            }
-            featureMessages += AgentFeatureMessageEntry(
-                source = source,
-                type = message.messageType.toString(),
-                detail = compactText(detail, 200),
-            )
-            if (featureMessages.size > 30) featureMessages.removeFirst()
         }
 
         suspend fun captureContextSnapshot(context: AIAgentContext, path: String) {
@@ -960,38 +870,16 @@ object KoogAgentRunner {
             presetTitle = request.runtimePreset.title,
             nodeNames = nodeNames.toList(),
             subgraphNames = subgraphNames.toList(),
+            availableToolNames = availableToolNames.toList(),
+            toolSourceSummaries = toolSourceSummaries.toList(),
             toolNames = toolNames.toList(),
             llmModels = llmModels.toList(),
             historyCount = historyCount,
             historyPreview = historyPreview.toList(),
             storageEntries = storageEntries.toList(),
-            localWriterEnabled = localWriterEnabled,
-            debuggerEnabled = debuggerEnabled,
-            debuggerPort = debuggerPort,
-            remoteClientEnabled = remoteClientEnabled,
-            remoteClientTarget = remoteClientTarget,
-            remoteClientConnected = remoteClientConnected,
-            featureMessages = featureMessages.toList(),
             timeline = timeline.toList(),
             finalResultPreview = compactText(answer),
         )
-    }
-
-    private class StudioFeatureMessageProcessor(
-        private val source: String,
-        private val runtimeCollector: RuntimeSnapshotCollector,
-    ) : FeatureMessageProcessor() {
-        private val openState = MutableStateFlow(true)
-
-        override val isOpen = openState.asStateFlow()
-
-        override suspend fun processMessage(message: FeatureMessage) {
-            runtimeCollector.captureFeatureMessage(source = source, message = message)
-        }
-
-        override suspend fun close() {
-            openState.value = false
-        }
     }
 
     private enum class RouteTarget {
@@ -1005,9 +893,6 @@ object KoogAgentRunner {
         val originalInput: String,
         val reason: String,
     )
-
-    private fun AgentFeatureConfig.shouldInstallDebuggerFeature(): Boolean =
-        debuggerEnabled || localWriterEnabled
 
     private val routeKey = createStorageKey<String>("routing.target")
     private val routeReasonKey = createStorageKey<String>("routing.reason")

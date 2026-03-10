@@ -23,5 +23,3 @@ includeBuild("..")
 
 rootProject.name = "My Application"
 include(":app")
-include(":reflect-bridge-protocol")
-include(":reflect-bridge-host")

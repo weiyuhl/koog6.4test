@@ -11,15 +11,9 @@ data class StoredSettings(
     val baseUrl: String,
     val extraConfig: String,
     val promptDraft: String,
-    val localWriterEnabled: Boolean = true,
-    val debuggerEnabled: Boolean = false,
-    val debuggerPort: String = "50881",
-    val debuggerWaitMs: String = "250",
-    val remoteClientEnabled: Boolean = false,
-    val remoteHost: String = "127.0.0.1",
-    val remotePort: String = "50881",
-    val reflectBridgeEnabled: Boolean = false,
-    val reflectBridgeBaseUrl: String = "http://10.0.2.2:8095",
+    val codeToolsEnabled: Boolean = true,
+    val codeToolsWorkspaceRoot: String = "",
+    val codeToolsAllowedPathPrefixes: String = "",
     val systemPrompt: String = "",
     val temperature: String = "0.2",
     val maxIterations: String = "50",
@@ -45,15 +39,9 @@ object AppLocalStoreCodec {
         settings.baseUrl,
         settings.extraConfig,
         settings.promptDraft,
-        settings.localWriterEnabled.toString(),
-        settings.debuggerEnabled.toString(),
-        settings.debuggerPort,
-        settings.debuggerWaitMs,
-        settings.remoteClientEnabled.toString(),
-        settings.remoteHost,
-        settings.remotePort,
-        settings.reflectBridgeEnabled.toString(),
-        settings.reflectBridgeBaseUrl,
+        settings.codeToolsEnabled.toString(),
+        settings.codeToolsWorkspaceRoot,
+        settings.codeToolsAllowedPathPrefixes,
         settings.systemPrompt,
         settings.temperature,
         settings.maxIterations,
@@ -62,7 +50,7 @@ object AppLocalStoreCodec {
     fun decodeSettings(raw: String?): StoredSettings? {
         if (raw.isNullOrBlank()) return null
         val parts = raw.split("\t")
-        if (parts.size != 6 && parts.size != 13 && parts.size != 15 && parts.size != 18) return null
+        if (parts.size != 12) return null
 
         return StoredSettings(
             providerName = unescape(parts[0]),
@@ -71,18 +59,12 @@ object AppLocalStoreCodec {
             baseUrl = unescape(parts[3]),
             extraConfig = unescape(parts[4]),
             promptDraft = unescape(parts[5]),
-            localWriterEnabled = parts.getOrNull(6)?.let(::unescape)?.toBooleanStrictOrNull() ?: true,
-            debuggerEnabled = parts.getOrNull(7)?.let(::unescape)?.toBooleanStrictOrNull() ?: false,
-            debuggerPort = parts.getOrNull(8)?.let(::unescape) ?: "50881",
-            debuggerWaitMs = parts.getOrNull(9)?.let(::unescape) ?: "250",
-            remoteClientEnabled = parts.getOrNull(10)?.let(::unescape)?.toBooleanStrictOrNull() ?: false,
-            remoteHost = parts.getOrNull(11)?.let(::unescape) ?: "127.0.0.1",
-            remotePort = parts.getOrNull(12)?.let(::unescape) ?: "50881",
-            reflectBridgeEnabled = parts.getOrNull(13)?.let(::unescape)?.toBooleanStrictOrNull() ?: false,
-            reflectBridgeBaseUrl = parts.getOrNull(14)?.let(::unescape) ?: "http://10.0.2.2:8095",
-            systemPrompt = parts.getOrNull(15)?.let(::unescape).orEmpty(),
-            temperature = parts.getOrNull(16)?.let(::unescape) ?: "0.2",
-            maxIterations = parts.getOrNull(17)?.let(::unescape) ?: "50",
+            codeToolsEnabled = parts.getOrNull(6)?.let(::unescape)?.toBooleanStrictOrNull() ?: true,
+            codeToolsWorkspaceRoot = parts.getOrNull(7)?.let(::unescape) ?: "",
+            codeToolsAllowedPathPrefixes = parts.getOrNull(8)?.let(::unescape) ?: "",
+            systemPrompt = parts.getOrNull(9)?.let(::unescape).orEmpty(),
+            temperature = parts.getOrNull(10)?.let(::unescape) ?: "0.2",
+            maxIterations = parts.getOrNull(11)?.let(::unescape) ?: "50",
         )
     }
 

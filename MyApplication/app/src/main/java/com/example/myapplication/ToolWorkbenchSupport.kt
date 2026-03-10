@@ -7,10 +7,6 @@ import ai.koog.agents.core.tools.ToolParameterType
 import ai.koog.agents.core.tools.annotations.InternalAgentToolsApi
 import ai.koog.agents.core.tools.serialization.ToolJson
 import ai.koog.agents.core.tools.serialization.serializeToolDescriptorsToJsonString
-import com.example.myapplication.reflectbridge.BridgeFailureKind
-import com.example.myapplication.reflectbridge.BridgeParameterKind
-import com.example.myapplication.reflectbridge.ReflectBridgeDiagnosticDto
-import com.example.myapplication.reflectbridge.ReflectBridgeToolDto
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
@@ -56,6 +52,14 @@ enum class ToolWorkbenchFailureKind {
     VALIDATION_FAILURE,
     EXECUTION_FAILURE,
     RESULT_SERIALIZATION_FAILURE,
+    PATH_VALIDATION_FAILURE,
+    FILE_NOT_FOUND,
+    NON_TEXT_FILE,
+    PATCH_APPLY_FAILURE,
+    REGEX_SEARCH_FAILURE,
+    SHELL_DENIED,
+    SHELL_TIMEOUT,
+    SHELL_EXECUTION_FAILURE,
     TRANSPORT_FAILURE,
     REGISTRATION_FAILURE,
     UNKNOWN,
@@ -75,6 +79,7 @@ data class ToolWorkbenchExecutionRecord(
     val status: String,
     val argsJson: String,
     val resultText: String,
+    val resultPayload: String? = null,
     val failureKind: ToolWorkbenchFailureKind? = null,
     val errorText: String? = null,
     val timestamp: String,
@@ -92,28 +97,6 @@ fun Tool<*, *>.asWorkbenchDefinition(): ToolWorkbenchDefinition = ToolWorkbenchD
     parameters = descriptor.workbenchParameters(),
     schemaJson = serializeToolDescriptorsToJsonString(listOf(descriptor)),
     execute = { rawInputs -> executeToolFromWorkbench(this, rawInputs) },
-)
-
-fun ReflectBridgeToolDto.asWorkbenchDefinition(
-    client: ReflectBridgeClient,
-    baseUrl: String,
-): ToolWorkbenchDefinition = ToolWorkbenchDefinition(
-    name = name,
-    description = description,
-    sourceLabel = source,
-    registrationLabel = registration,
-    parameters = parameters.map { parameter ->
-        ToolWorkbenchParameter(
-            name = parameter.name,
-            description = parameter.description,
-            typeLabel = parameter.typeLabel,
-            kind = parameter.kind.toWorkbenchKind(),
-            isRequired = parameter.required,
-            enumValues = parameter.enumValues,
-        )
-    },
-    schemaJson = schemaJson,
-    execute = { rawInputs -> client.execute(baseUrl = baseUrl, tool = this, rawInputs = rawInputs) },
 )
 
 fun ToolParameterType.toWorkbenchTypeLabel(): String = when (this) {
@@ -285,18 +268,6 @@ private fun ai.koog.agents.core.tools.ToolParameterDescriptor.toWorkbenchParamet
     enumValues = (type as? ToolParameterType.Enum)?.entries?.toList().orEmpty(),
 )
 
-private fun BridgeParameterKind.toWorkbenchKind(): ToolWorkbenchValueKind = when (this) {
-    BridgeParameterKind.STRING -> ToolWorkbenchValueKind.STRING
-    BridgeParameterKind.INTEGER -> ToolWorkbenchValueKind.INTEGER
-    BridgeParameterKind.FLOAT -> ToolWorkbenchValueKind.FLOAT
-    BridgeParameterKind.BOOLEAN -> ToolWorkbenchValueKind.BOOLEAN
-    BridgeParameterKind.NULL -> ToolWorkbenchValueKind.NULL
-    BridgeParameterKind.ENUM -> ToolWorkbenchValueKind.ENUM
-    BridgeParameterKind.ARRAY -> ToolWorkbenchValueKind.ARRAY
-    BridgeParameterKind.OBJECT -> ToolWorkbenchValueKind.OBJECT
-    BridgeParameterKind.JSON -> ToolWorkbenchValueKind.JSON
-}
-
 private fun failureRecord(
     toolName: String,
     sourceLabel: String,
@@ -321,24 +292,4 @@ private fun failureRecord(
 private fun Throwable.toWorkbenchFailureKind(): ToolWorkbenchFailureKind = when (this) {
     is ToolException.ValidationFailure -> ToolWorkbenchFailureKind.VALIDATION_FAILURE
     else -> ToolWorkbenchFailureKind.EXECUTION_FAILURE
-}
-
-fun BridgeFailureKind.toWorkbenchFailureKind(): ToolWorkbenchFailureKind = when (this) {
-    BridgeFailureKind.ARGUMENT_PARSE_FAILURE -> ToolWorkbenchFailureKind.ARGUMENT_PARSE_FAILURE
-    BridgeFailureKind.VALIDATION_FAILURE -> ToolWorkbenchFailureKind.VALIDATION_FAILURE
-    BridgeFailureKind.EXECUTION_FAILURE -> ToolWorkbenchFailureKind.EXECUTION_FAILURE
-    BridgeFailureKind.RESULT_SERIALIZATION_FAILURE -> ToolWorkbenchFailureKind.RESULT_SERIALIZATION_FAILURE
-    BridgeFailureKind.REGISTRATION_FAILURE -> ToolWorkbenchFailureKind.REGISTRATION_FAILURE
-    BridgeFailureKind.TRANSPORT_FAILURE -> ToolWorkbenchFailureKind.TRANSPORT_FAILURE
-    BridgeFailureKind.UNKNOWN -> ToolWorkbenchFailureKind.UNKNOWN
-}
-
-fun ReflectBridgeClient.snapshotDiagnosticsToWorkbench(
-    diagnostics: List<ReflectBridgeDiagnosticDto>,
-): List<ToolWorkbenchDiagnostic> = diagnostics.map {
-    ToolWorkbenchDiagnostic(
-        registration = it.registration,
-        failureKind = it.failureKind.toWorkbenchFailureKind(),
-        message = it.message,
-    )
 }

@@ -14,15 +14,9 @@ class AppLocalStoreCodecTest {
             baseUrl = "https://openrouter.ai/api/v1",
             extraConfig = "2024-10-21",
             promptDraft = "你好\n请继续",
-            localWriterEnabled = true,
-            debuggerEnabled = true,
-            debuggerPort = "50901",
-            debuggerWaitMs = "750",
-            remoteClientEnabled = true,
-            remoteHost = "10.0.2.2",
-            remotePort = "50901",
-            reflectBridgeEnabled = true,
-            reflectBridgeBaseUrl = "http://10.0.2.2:8095",
+            codeToolsEnabled = true,
+            codeToolsWorkspaceRoot = "d:/koog",
+            codeToolsAllowedPathPrefixes = "d:/koog;d:/koog/MyApplication",
             systemPrompt = "Always cite the provider.",
             temperature = "0.7",
             maxIterations = "25",
@@ -51,7 +45,7 @@ class AppLocalStoreCodecTest {
     }
 
     @Test
-    fun legacy_settings_payload_still_decodes_with_feature_defaults() {
+    fun legacy_settings_payload_returns_null() {
         val legacy = AppLocalStoreCodec.encodeSettings(
             StoredSettings(
                 providerName = "OPENAI",
@@ -63,16 +57,17 @@ class AppLocalStoreCodecTest {
             )
         ).split("\t").take(6).joinToString("\t")
 
-        val decoded = AppLocalStoreCodec.decodeSettings(legacy)
+        assertNull(AppLocalStoreCodec.decodeSettings(legacy))
+    }
 
-        assertEquals(true, decoded?.localWriterEnabled)
-        assertEquals(false, decoded?.debuggerEnabled)
-        assertEquals("50881", decoded?.debuggerPort)
-        assertEquals("127.0.0.1", decoded?.remoteHost)
-        assertEquals(false, decoded?.reflectBridgeEnabled)
-        assertEquals("http://10.0.2.2:8095", decoded?.reflectBridgeBaseUrl)
-        assertEquals("", decoded?.systemPrompt)
-        assertEquals("0.2", decoded?.temperature)
-        assertEquals("50", decoded?.maxIterations)
+    @Test
+    fun old_long_payload_returns_null() {
+        val legacy = listOf(
+            "OPENAI", "key", "gpt-4o-mini", "https://api.openai.com", "", "hello",
+            "true", "false", "50881", "250", "false", "127.0.0.1", "50881",
+            "true", "d:/koog", "d:/koog;d:/koog/app", "system", "0.3", "12",
+        ).joinToString("\t")
+
+        assertNull(AppLocalStoreCodec.decodeSettings(legacy))
     }
 }

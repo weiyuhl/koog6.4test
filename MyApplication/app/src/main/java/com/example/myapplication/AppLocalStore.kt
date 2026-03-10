@@ -3,7 +3,8 @@ package com.example.myapplication
 import android.content.Context
 
 class AppLocalStore(context: Context) {
-    private val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    private val appContext = context.applicationContext
+    private val prefs = appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     fun loadState(): StoredAppState {
         val settings = AppLocalStoreCodec.decodeSettings(prefs.getString(KEY_SETTINGS, null))
@@ -21,12 +22,6 @@ class AppLocalStore(context: Context) {
         prefs.edit().putString(KEY_MESSAGES, AppLocalStoreCodec.encodeMessages(messages)).apply()
     }
 
-    fun loadLastWorkspaceRoute(): String? = prefs.getString(KEY_WORKSPACE_ROUTE, null)
-
-    fun saveLastWorkspaceRoute(route: String) {
-        prefs.edit().putString(KEY_WORKSPACE_ROUTE, route).apply()
-    }
-
     fun loadRuntimePresetId(): String? = prefs.getString(KEY_RUNTIME_PRESET, null)
 
     fun saveRuntimePresetId(presetId: String) {
@@ -40,15 +35,9 @@ class AppLocalStore(context: Context) {
         baseUrl = KoogProvider.OPENAI.defaultBaseUrl,
         extraConfig = KoogProvider.OPENAI.extraFieldDefault,
         promptDraft = "",
-        localWriterEnabled = true,
-        debuggerEnabled = false,
-        debuggerPort = "50881",
-        debuggerWaitMs = "250",
-        remoteClientEnabled = false,
-        remoteHost = "127.0.0.1",
-        remotePort = "50881",
-        reflectBridgeEnabled = false,
-        reflectBridgeBaseUrl = "http://10.0.2.2:8095",
+        codeToolsEnabled = true,
+        codeToolsWorkspaceRoot = appContext.filesDir.absolutePath,
+        codeToolsAllowedPathPrefixes = appContext.filesDir.absolutePath,
         systemPrompt = "",
         temperature = "0.2",
         maxIterations = "50",
@@ -59,7 +48,7 @@ class AppLocalStore(context: Context) {
             id = 0L,
             role = "System",
             label = "欢迎",
-            text = "这里是聊天首页。点左上角按钮打开侧边栏，再从侧边栏底部进入设置页配置供应商。",
+            text = "欢迎使用。请先点左上角菜单，在抽屉底部进入设置完成模型配置，然后开始聊天。",
         )
     )
 
@@ -67,7 +56,6 @@ class AppLocalStore(context: Context) {
         const val PREFS_NAME = "koog_chat_local_store"
         const val KEY_SETTINGS = "settings"
         const val KEY_MESSAGES = "messages"
-        const val KEY_WORKSPACE_ROUTE = "workspace_route"
         const val KEY_RUNTIME_PRESET = "runtime_preset"
     }
 }

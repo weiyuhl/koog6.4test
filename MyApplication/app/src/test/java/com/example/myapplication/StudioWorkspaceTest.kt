@@ -1,16 +1,56 @@
 package com.example.myapplication
 
-import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class StudioWorkspaceTest {
+class NativeSettingsLogicTest {
     @Test
-    fun fromStoredRoute_returns_chat_for_unknown_route() {
-        assertEquals(StudioWorkspace.Chat, StudioWorkspace.fromStoredRoute("unknown"))
+    fun validate_native_settings_reports_required_fields() {
+        val errors = validateNativeSettings(
+            NativeSettingsState(
+                provider = KoogProvider.OPENAI,
+                apiKey = "",
+                modelId = "",
+                baseUrl = "https://api.openai.com/v1",
+                extraConfig = "",
+                promptDraft = "",
+                runtimePreset = AgentRuntimePreset.StreamingWithTools,
+                systemPrompt = "",
+                temperature = "0.2",
+                maxIterations = "50",
+                codeToolsEnabled = true,
+                codeToolsWorkspaceRoot = "",
+                codeToolsAllowedPathPrefixes = "",
+            )
+        )
+
+        assertTrue(errors.hasAny())
+        assertTrue(nativeSettingsSummary(errors).contains("请输入模型 ID"))
+        assertTrue(nativeSettingsSummary(errors).contains("请先输入 API Key"))
+        assertTrue(nativeSettingsSummary(errors).contains("Workspace root"))
     }
 
     @Test
-    fun fromStoredRoute_returns_matching_workspace_when_route_is_known() {
-        assertEquals(StudioWorkspace.ToolRegistry, StudioWorkspace.fromStoredRoute(StudioWorkspace.ToolRegistry.route))
+    fun validate_native_settings_accepts_complete_config() {
+        val errors = validateNativeSettings(
+            NativeSettingsState(
+                provider = KoogProvider.OPENAI,
+                apiKey = "key",
+                modelId = "gpt-4.1-mini",
+                baseUrl = "https://api.openai.com/v1",
+                extraConfig = "",
+                promptDraft = "hello",
+                runtimePreset = AgentRuntimePreset.StreamingWithTools,
+                systemPrompt = "system",
+                temperature = "0.4",
+                maxIterations = "20",
+                codeToolsEnabled = true,
+                codeToolsWorkspaceRoot = "d:/koog",
+                codeToolsAllowedPathPrefixes = "d:/koog",
+            )
+        )
+
+        assertFalse(errors.hasAny())
     }
 }

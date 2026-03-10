@@ -195,6 +195,32 @@
 - Android 可调用 reflect tools 并查看 descriptor/schema/result
 - `ToolSet` / callable 工具不会在 UI 或运行链路中缺席
 
+## Wave 1 扩展进度
+
+### Phase 1：code-tools bridge 协议与 host
+
+- 已完成 `code-tools-bridge-protocol` 与 `code-tools-bridge-host`
+- 已覆盖目录浏览、读写/编辑文件、regex 搜索、受控 shell、policy diagnostics
+- 已具备 `/snapshot`、`/diagnostics`、`/shell/approval`、`/invoke` 闭环
+
+### Phase 2：Android Code Tools 工作区
+
+- 已完成 Android 侧 bridge client、配置持久化与 Code Tools 工作区
+- Tool Registry 已统一聚合 common / reflect / code-tools 三源工具
+- 已支持目录、文件、搜索、shell approval 与执行历史调试
+
+### Phase 3：Planner Lab 与 agents-utils
+
+- 已新增 Planner Lab 工作区，覆盖 `SimpleLLMPlanner` 可重规划演示与 GOAP demo
+- 已将 `ModelInfo` / `HiddenString` 脱敏预览接入 Agent Config、Session Inspector、Events
+- planner runtime summary、plan snapshots、timeline 已可视化
+
+### Phase 4：测试、回归与验收
+
+- 已补 app 与 host 的 targeted tests，覆盖 Planner metadata、code-tools failure classification、shell approval policy
+- 已完成 `:app:testDebugUnitTest`、`:app:assembleDebug`、host 定向测试回归
+- 当前 Wave 1 已达到“可运行、可调试、可验证”的收口状态
+
 ## 风险与注意事项
 
 - reflect 能力是 JVM-only，不能在 Android 端直接伪装成本地 common API
@@ -203,8 +229,8 @@
 
 ## 当前下一步
 
-1. 先完成 Phase 1 的工作区导航与状态架构重构
-2. 同步定义 JVM bridge 模块边界与通信协议
-3. 进入 Phase 2，先把 `agents-core` 主干能力落到 UI 与 runtime
+1. 如需继续扩展，可为 Planner Lab 增加更多真实 planner 策略与事件接线
+2. 可继续补 Compose UI 层交互测试与 bridge host HTTP 级集成测试
+3. Wave 1 已完成，下一步转入新的扩展范围时再建立新阶段计划
 
 本文件是严格全量接入的主计划文档，后续每完成一个阶段都要更新。

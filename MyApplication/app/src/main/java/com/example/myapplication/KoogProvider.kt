@@ -15,13 +15,9 @@ data class AgentRequest(
 )
 
 data class AgentFeatureConfig(
-    val localWriterEnabled: Boolean,
-    val debuggerEnabled: Boolean,
-    val debuggerPort: Int?,
-    val debuggerWaitMillis: Long?,
-    val remoteClientEnabled: Boolean,
-    val remoteHost: String,
-    val remotePort: Int?,
+    val codeToolsEnabled: Boolean,
+    val codeToolsWorkspaceRoot: String,
+    val codeToolsAllowedPathPrefixes: String,
 )
 
 data class AgentExecutionResult(
@@ -39,18 +35,13 @@ data class AgentRuntimeSnapshot(
     val presetTitle: String,
     val nodeNames: List<String>,
     val subgraphNames: List<String>,
+    val availableToolNames: List<String>,
+    val toolSourceSummaries: List<String>,
     val toolNames: List<String>,
     val llmModels: List<String>,
     val historyCount: Int,
     val historyPreview: List<AgentHistoryEntry>,
     val storageEntries: List<AgentStorageEntry>,
-    val localWriterEnabled: Boolean,
-    val debuggerEnabled: Boolean,
-    val debuggerPort: Int?,
-    val remoteClientEnabled: Boolean,
-    val remoteClientTarget: String?,
-    val remoteClientConnected: Boolean,
-    val featureMessages: List<AgentFeatureMessageEntry>,
     val timeline: List<AgentTimelineEntry>,
     val finalResultPreview: String,
 )
@@ -63,12 +54,6 @@ data class AgentHistoryEntry(
 data class AgentStorageEntry(
     val key: String,
     val valuePreview: String,
-)
-
-data class AgentFeatureMessageEntry(
-    val source: String,
-    val type: String,
-    val detail: String,
 )
 
 data class AgentTimelineEntry(
