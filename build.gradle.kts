@@ -1,0 +1,308 @@
+import ai.koog.gradle.fixups.DisableDistTasks.disableDistTasks
+import ai.koog.gradle.plugins.CheckSplitPackagesExtension
+import ai.koog.gradle.plugins.CheckSplitPackagesPlugin
+import okhttp3.MultipartBody
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.asRequestBody
+import org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+import org.jetbrains.kotlin.gradle.targets.js.ir.KotlinJsIrLink
+import org.jetbrains.kotlin.gradle.tasks.BaseKotlinCompile
+import org.jlleitschuh.gradle.ktlint.KtlintExtension
+import java.time.Clock
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Base64
+
+version = run {
+    // our version follows the semver specification
+
+    val baseVersion = project.property("version") as String
+
+    val feat = run {
+        val releaseBuild = !System.getenv("BRANCH_KOOG_IS_RELEASING_FROM").isNullOrBlank()
+        val nightlyBuild = System.getenv("IS_NIGHTLY_BUILD")?.toBoolean() ?: false
+        val branch = System.getenv("BRANCH_KOOG_IS_RELEASING_FROM")
+        val customVersion = System.getenv("CE_CUSTOM_VERSION")
+        val tcCounter = System.getenv("TC_BUILD_COUNTER")
+
+        if (nightlyBuild) {
+            if (branch != "develop") {
+                throw GradleException("Nightly builds are allowed only from the develop branch")
+            }
+            val date = Clock.systemUTC().instant()
+                .atZone(ZoneId.of("UTC"))
+                .format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmm"))
+            if (!customVersion.isNullOrBlank()) {
+                "-$branch-$date-$customVersion"
+            } else {
+                "-$branch-$date"
+            }
+        } else if (releaseBuild) {
+            when {
+                branch == "main" || isCustomReleaseBranch(branch) -> {
+                    if (!customVersion.isNullOrBlank() && branch == "main") {
+                        throw GradleException("Custom version is not allowed during release from the main branch")
+                    }
+
+                    ""
+                }
+
+                branch == "develop" -> {
+                    if (!customVersion.isNullOrBlank()) {
+                        throw GradleException("Custom version is not allowed during release from the develop branch")
+                    } else if (tcCounter.isNullOrBlank()) {
+                        throw GradleException("TC_BUILD_COUNTER is required during release from the develop branch")
+                    } else {
+                        ".$tcCounter"
+                    }
+                }
+
+                else -> {
+                    if (!customVersion.isNullOrBlank()) {
+                        "-feat-$customVersion"
+                    } else {
+                        throw GradleException("Custom version is required during release from a feature branch")
+                    }
+                }
+            }
+        } else {
+            // do not care
+            "-SNAPSHOT"
+        }
+    }
+
+    "$baseVersion$feat"
+}
+
+fun isCustomReleaseBranch(branchName: String): Boolean = branchName.matches(Regex("""^(release\/)?\d+\.\d+\.\d+$"""))
+
+buildscript {
+    dependencies {
+        classpath(platform(libs.okhttp.bom))
+        classpath(libs.okhttp)
+    }
+}
+
+plugins {
+    id("ai.kotlin.dokka")
+    alias(libs.plugins.kotlinx.kover)
+    alias(libs.plugins.ktlint)
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+disableDistTasks()
+
+// Apply Kover and ktlint to all subprojects
+subprojects {
+    apply(plugin = "org.jetbrains.kotlinx.kover")
+    apply(plugin = "org.jlleitschuh.gradle.ktlint")
+}
+
+subprojects {
+    extensions.configure<KtlintExtension> {
+        outputToConsole = true
+        coloredOutput = true
+    }
+
+    tasks.withType<Test> {
+        testLogging {
+            showStandardStreams = true
+            showExceptions = true
+            exceptionFormat = FULL
+        }
+        environment.putAll(
+            mapOf(
+                "ANTHROPIC_API_TEST_KEY" to System.getenv("ANTHROPIC_API_TEST_KEY"),
+                "AWS_ACCESS_KEY_ID" to System.getenv("AWS_ACCESS_KEY_ID"),
+                "AWS_BEARER_TOKEN_BEDROCK" to System.getenv("AWS_BEARER_TOKEN_BEDROCK"),
+                "AWS_SECRET_ACCESS_KEY" to System.getenv("AWS_SECRET_ACCESS_KEY"),
+                "AWS_BEDROCK_GUARDRAIL_ID" to System.getenv("AWS_BEDROCK_GUARDRAIL_ID"),
+                "AWS_BEDROCK_GUARDRAIL_VERSION" to System.getenv("AWS_BEDROCK_GUARDRAIL_VERSION"),
+                "DEEPSEEK_API_TEST_KEY" to System.getenv("DEEPSEEK_API_TEST_KEY"),
+                "GEMINI_API_TEST_KEY" to System.getenv("GEMINI_API_TEST_KEY"),
+                "MISTRAL_AI_API_TEST_KEY" to System.getenv("MISTRAL_AI_API_TEST_KEY"),
+                "OPEN_AI_API_TEST_KEY" to System.getenv("OPEN_AI_API_TEST_KEY"),
+                "OPEN_ROUTER_API_TEST_KEY" to System.getenv("OPEN_ROUTER_API_TEST_KEY"),
+            )
+        )
+    }
+}
+
+tasks.register("reportProjectVersionToTeamCity") {
+    doLast {
+        println("##teamcity[buildNumber '${project.version}']")
+    }
+}
+
+tasks {
+    val packSonatypeCentralBundle by registering(Zip::class) {
+        group = "publishing"
+
+        subprojects {
+            dependsOn(tasks.withType<PublishToMavenRepository>())
+        }
+
+        from(rootProject.layout.buildDirectory.dir("artifacts/maven"))
+        archiveFileName.set("bundle.zip")
+        destinationDirectory.set(layout.buildDirectory)
+    }
+
+    @Suppress("unused")
+    val publishMavenToCentralPortal by registering {
+        group = "publishing"
+
+        dependsOn(packSonatypeCentralBundle)
+
+        doLast {
+            val uriBase = "https://central.sonatype.com/api/v1/publisher/upload"
+
+            val mainBranch = System.getenv("BRANCH_KOOG_IS_RELEASING_FROM") == "main"
+            val customReleaseBranch = isCustomReleaseBranch(System.getenv("BRANCH_KOOG_IS_RELEASING_FROM"))
+            val publishingType = if (mainBranch || customReleaseBranch) {
+                println("Publishing from the main branch, so publishing as AUTOMATIC.")
+                "AUTOMATIC"
+            } else {
+                println("Publishing from the non-main branch, so publishing as USER_MANAGED.")
+                "USER_MANAGED" // do not publish releases from non-main branches without approval
+            }
+
+            val deploymentName = "${project.name}-$version"
+            val uri = "$uriBase?name=$deploymentName&publishingType=$publishingType"
+
+            val userName = System.getenv("CE_MVN_CLIENT_USERNAME") as String
+            val token = System.getenv("CE_MVN_CLIENT_PASSWORD") as String
+            val base64Auth = Base64.getEncoder().encode("$userName:$token".toByteArray()).toString(Charsets.UTF_8)
+            val bundleFile = packSonatypeCentralBundle.get().archiveFile.get().asFile
+
+            println("Sending request to $uri...")
+
+            val client = OkHttpClient()
+            val request = Request.Builder()
+                .url(uri)
+                .header("Authorization", "Bearer $base64Auth")
+                .post(
+                    MultipartBody.Builder()
+                        .setType(MultipartBody.FORM)
+                        .addFormDataPart("bundle", bundleFile.name, bundleFile.asRequestBody())
+                        .build()
+                )
+                .build()
+            client.newCall(request).execute().use { response ->
+                val statusCode = response.code
+                println("Upload status code: $statusCode")
+                println("Upload result: ${response.body.string()}")
+                if (statusCode != 201) {
+                    error("Upload error to Central repository. Status code $statusCode.")
+                }
+            }
+        }
+    }
+}
+
+dependencies {
+    dokka(project(":agents:agents-core"))
+    dokka(project(":agents:agents-ext"))
+    dokka(project(":agents:agents-features:agents-features-event-handler"))
+    dokka(project(":agents:agents-features:agents-features-memory"))
+    dokka(project(":agents:agents-features:agents-features-opentelemetry"))
+    dokka(project(":agents:agents-features:agents-features-snapshot"))
+    dokka(project(":agents:agents-features:agents-features-tokenizer"))
+    dokka(project(":agents:agents-features:agents-features-trace"))
+    dokka(project(":agents:agents-planner"))
+    dokka(project(":agents:agents-mcp"))
+    dokka(project(":agents:agents-test"))
+    dokka(project(":agents:agents-tools"))
+    dokka(project(":agents:agents-utils"))
+    dokka(project(":embeddings:embeddings-base"))
+    dokka(project(":embeddings:embeddings-llm"))
+    dokka(project(":koog-ktor"))
+    dokka(project(":koog-spring-boot-starter"))
+    dokka(project(":prompt:prompt-cache:prompt-cache-files"))
+    dokka(project(":prompt:prompt-cache:prompt-cache-model"))
+    dokka(project(":prompt:prompt-cache:prompt-cache-redis"))
+    dokka(project(":prompt:prompt-executor:prompt-executor-cached"))
+    dokka(project(":prompt:prompt-executor:prompt-executor-clients"))
+    dokka(project(":prompt:prompt-executor:prompt-executor-clients:prompt-executor-anthropic-client"))
+    dokka(project(":prompt:prompt-executor:prompt-executor-clients:prompt-executor-bedrock-client"))
+    dokka(project(":prompt:prompt-executor:prompt-executor-clients:prompt-executor-deepseek-client"))
+    dokka(project(":prompt:prompt-executor:prompt-executor-clients:prompt-executor-google-client"))
+    dokka(project(":prompt:prompt-executor:prompt-executor-clients:prompt-executor-mistralai-client"))
+    dokka(project(":prompt:prompt-executor:prompt-executor-clients:prompt-executor-ollama-client"))
+    dokka(project(":prompt:prompt-executor:prompt-executor-clients:prompt-executor-openai-client"))
+    dokka(project(":prompt:prompt-executor:prompt-executor-clients:prompt-executor-openai-client-base"))
+    dokka(project(":prompt:prompt-executor:prompt-executor-clients:prompt-executor-openrouter-client"))
+    dokka(project(":prompt:prompt-executor:prompt-executor-clients:prompt-executor-dashscope-client"))
+    dokka(project(":prompt:prompt-executor:prompt-executor-llms"))
+    dokka(project(":prompt:prompt-executor:prompt-executor-llms-all"))
+    dokka(project(":prompt:prompt-executor:prompt-executor-model"))
+    dokka(project(":prompt:prompt-llm"))
+    dokka(project(":prompt:prompt-markdown"))
+    dokka(project(":prompt:prompt-model"))
+    dokka(project(":prompt:prompt-processor"))
+    dokka(project(":prompt:prompt-structure"))
+    dokka(project(":prompt:prompt-tokenizer"))
+    dokka(project(":prompt:prompt-xml"))
+    dokka(project(":rag:rag-base"))
+    dokka(project(":rag:vector-storage"))
+    dokka(project(":utils"))
+}
+
+kover {
+    val excludedProjects = setOf(
+        ":integration-tests",
+        ":examples",
+        ":buildSrc",
+        ":docs",
+    )
+    merge {
+        subprojects {
+            it.path !in excludedProjects
+        }
+    }
+    reports {
+        total {
+            binary {
+                file = file(".qodana/code-coverage/kover.ic")
+            }
+        }
+    }
+}
+
+fun Project.getKotlinCompileTasks(sourceSetName: String): List<Task> {
+    return this.tasks
+        .withType<BaseKotlinCompile>()
+        // Filtering JS linking tasks, additional overhead and not needed for verification. Not used by assemble task.
+        .filter { it !is KotlinJsIrLink }
+        .filter { it.sourceSetName.get() == sourceSetName }
+}
+
+tasks.register("compileKotlinAll") {
+    description = """
+    Compiles all main Kotlin sources in all subprojects. Useful to verify that everything compiles for all supported platforms.
+    """.trimIndent()
+
+    dependsOn(subprojects.map { it.getKotlinCompileTasks("main") })
+}
+
+tasks.register("compileTestKotlinAll") {
+    description = """
+    Compiles all test Kotlin sources in all subprojects. Useful to verify that everything compiles for all supported platforms.
+    """.trimIndent()
+
+    dependsOn(subprojects.map { it.getKotlinCompileTasks("test") })
+}
+
+apply<CheckSplitPackagesPlugin>()
+
+extensions.getByType<CheckSplitPackagesExtension>().apply {
+    includeProjects = setOf(":agents:", ":embeddings:", ":prompt:", ":koog-spring-boot-starter", ":rag:")
+    failOnError = true
+    includePackages = setOf("ai.koog")
+}
