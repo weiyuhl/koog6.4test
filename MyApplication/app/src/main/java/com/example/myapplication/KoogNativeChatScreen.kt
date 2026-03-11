@@ -23,27 +23,23 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Send
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LocalTextStyle
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.myapplication.components.Icon
+import com.example.myapplication.components.IconButton
+import com.example.myapplication.components.Scaffold
+import com.example.myapplication.components.Surface
+import com.example.myapplication.components.Text
+import com.example.myapplication.components.TopAppBar
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun NativeChatScreen(
     provider: KoogProvider,
@@ -63,7 +59,6 @@ internal fun NativeChatScreen(
         topBar = {
             Surface(
                 shadowElevation = 2.dp,
-                tonalElevation = 0.dp,
                 color = Color.White
             ) {
                 TopAppBar(
@@ -85,9 +80,7 @@ internal fun NativeChatScreen(
                             )
                         }
                     },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.White,
-                    ),
+                    backgroundColor = Color.White,
                     modifier = Modifier.height(72.dp)
                 )
             }
@@ -101,12 +94,12 @@ internal fun NativeChatScreen(
                 isRunning = isRunning
             )
         },
+        backgroundColor = Color(0xFFF5F5F5)
     ) { innerPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(Color(0xFFF5F5F5))
         ) {
             if (messages.isEmpty()) {
                 EmptyStateView()
@@ -259,7 +252,7 @@ private fun NativeChatComposer(
                     .weight(1f)
                     .background(Color(0xFFF0F0F0), CircleShape)
                     .padding(horizontal = 16.dp, vertical = 10.dp),
-                textStyle = LocalTextStyle.current.copy(
+                textStyle = TextStyle(
                     color = Color(0xFF333333),
                     fontSize = 15.sp
                 ),

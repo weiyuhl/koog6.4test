@@ -18,19 +18,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DismissibleDrawerSheet
-import androidx.compose.material3.DismissibleNavigationDrawer
-import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationDrawerItem
-import androidx.compose.material3.NavigationDrawerItemDefaults
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.rememberDrawerState
+import com.example.myapplication.components.DrawerSheet
+import com.example.myapplication.components.Icon
+import com.example.myapplication.components.NavigationDrawer
+import com.example.myapplication.components.NavigationDrawerItem
+import com.example.myapplication.components.Text
+import com.example.myapplication.components.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -59,7 +52,7 @@ fun KoogNativeApp() {
     val appContext = LocalContext.current.applicationContext
     val navController = rememberNavController()
     val scope = rememberCoroutineScope()
-    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val drawerState = rememberDrawerState(false)
     val localStore = remember(appContext) { AppLocalStore(appContext) }
     val restoredState = remember(localStore) { localStore.loadState() }
     val restoredProvider = remember(restoredState.settings.providerName) { 
@@ -225,12 +218,10 @@ fun KoogNativeApp() {
         if (drawerState.isOpen) drawerState.close()
     }
 
-    DismissibleNavigationDrawer(
+    NavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            DismissibleDrawerSheet(
-                modifier = Modifier.width(280.dp)
-            ) {
+            DrawerSheet {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()

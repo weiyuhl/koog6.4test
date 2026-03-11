@@ -17,17 +17,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.RadioButtonDefaults
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,8 +25,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.myapplication.components.Icon
+import com.example.myapplication.components.IconButton
+import com.example.myapplication.components.RadioButton
+import com.example.myapplication.components.Scaffold
+import com.example.myapplication.components.Surface
+import com.example.myapplication.components.Text
+import com.example.myapplication.components.TopAppBar
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun NativeSettingsHomeScreen(
     state: NativeSettingsState,
@@ -50,7 +45,6 @@ internal fun NativeSettingsHomeScreen(
         topBar = {
             Surface(
                 shadowElevation = 2.dp,
-                tonalElevation = 0.dp,
                 color = Color.White
             ) {
                 TopAppBar(
@@ -72,9 +66,7 @@ internal fun NativeSettingsHomeScreen(
                             )
                         }
                     },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.White,
-                    ),
+                    backgroundColor = Color.White,
                     modifier = Modifier.height(64.dp)
                 )
             }
@@ -129,7 +121,6 @@ internal fun NativeSettingsHomeScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun NativeProviderSettingsScreen(
     state: NativeSettingsState,
@@ -145,7 +136,6 @@ internal fun NativeProviderSettingsScreen(
         topBar = {
             Surface(
                 shadowElevation = 2.dp,
-                tonalElevation = 0.dp,
                 color = Color.White
             ) {
                 TopAppBar(
@@ -167,9 +157,7 @@ internal fun NativeProviderSettingsScreen(
                             )
                         }
                     },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.White,
-                    ),
+                    backgroundColor = Color.White,
                     modifier = Modifier.height(64.dp)
                 )
             }
@@ -251,7 +239,6 @@ internal fun NativeProviderSettingsScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun NativeRuntimeSettingsScreen(
     state: NativeSettingsState,
@@ -266,7 +253,6 @@ internal fun NativeRuntimeSettingsScreen(
         topBar = {
             Surface(
                 shadowElevation = 2.dp,
-                tonalElevation = 0.dp,
                 color = Color.White
             ) {
                 TopAppBar(
@@ -288,9 +274,7 @@ internal fun NativeRuntimeSettingsScreen(
                             )
                         }
                     },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.White,
-                    ),
+                    backgroundColor = Color.White,
                     modifier = Modifier.height(64.dp)
                 )
             }
@@ -414,10 +398,8 @@ private fun ProviderItem(
             selected = selected,
             onClick = onSelect,
             enabled = provider.isSupportedOnAndroid,
-            colors = RadioButtonDefaults.colors(
-                selectedColor = Color(0xFF007AFF),
-                unselectedColor = Color(0xFFCCCCCC)
-            )
+            selectedColor = Color(0xFF007AFF),
+            unselectedColor = Color(0xFFCCCCCC)
         )
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -452,10 +434,8 @@ private fun PresetItem(
         RadioButton(
             selected = selected,
             onClick = onSelect,
-            colors = RadioButtonDefaults.colors(
-                selectedColor = Color(0xFF007AFF),
-                unselectedColor = Color(0xFFCCCCCC)
-            )
+            selectedColor = Color(0xFF007AFF),
+            unselectedColor = Color(0xFFCCCCCC)
         )
         Column(modifier = Modifier.weight(1f)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

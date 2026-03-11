@@ -9,17 +9,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.LocalTextStyle
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.myapplication.components.Text
 
 @Composable
 internal fun NativeTextField(
@@ -35,24 +34,24 @@ internal fun NativeTextField(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.White, RoundedCornerShape(8.dp))
+            .background(AppColors.Surface, RoundedCornerShape(8.dp))
             .padding(12.dp)
     ) {
         Text(
             text = label,
             fontSize = 13.sp,
-            color = Color(0xFF666666)
+            color = AppColors.OnSurfaceVariant
         )
         Spacer(modifier = Modifier.height(8.dp))
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
             modifier = Modifier.fillMaxWidth(),
-            textStyle = LocalTextStyle.current.copy(
-                color = Color(0xFF333333),
+            textStyle = TextStyle(
+                color = AppColors.OnSurface,
                 fontSize = 15.sp
             ),
-            cursorBrush = SolidColor(Color(0xFF007AFF)),
+            cursorBrush = SolidColor(AppColors.Primary),
             singleLine = singleLine,
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
             visualTransformation = if (secure) PasswordVisualTransformation() else VisualTransformation.None,
@@ -61,7 +60,7 @@ internal fun NativeTextField(
                     Text(
                         placeholder,
                         fontSize = 15.sp,
-                        color = Color(0xFF999999)
+                        color = AppColors.OnSurfaceVariant
                     )
                 }
                 innerTextField()
@@ -71,7 +70,7 @@ internal fun NativeTextField(
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 error,
-                color = Color(0xFFFF3B30),
+                color = AppColors.Error,
                 fontSize = 12.sp
             )
         }
