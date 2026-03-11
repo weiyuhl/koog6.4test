@@ -34,9 +34,9 @@ import com.example.myapplication.components.Text
 import com.example.myapplication.components.TopAppBar
 
 @Composable
-internal fun NativeSettingsHomeScreen(
-    state: NativeSettingsState,
-    errors: NativeFormErrors,
+internal fun SettingsHomeScreen(
+    state: SettingsState,
+    errors: FormErrors,
     onBackClick: () -> Unit,
     onOpenProviderSettings: () -> Unit,
     onOpenRuntimeSettings: () -> Unit,
@@ -89,7 +89,7 @@ internal fun NativeSettingsHomeScreen(
                         .padding(16.dp)
                 ) {
                     Text(
-                        "⚠️ ${nativeSettingsSummary(errors)}",
+                        "⚠️ ${settingsSummary(errors)}",
                         fontSize = 14.sp,
                         color = Color(0xFFC62828)
                     )
@@ -131,9 +131,9 @@ internal fun NativeSettingsHomeScreen(
 }
 
 @Composable
-internal fun NativeProviderSettingsScreen(
-    state: NativeSettingsState,
-    errors: NativeFormErrors,
+internal fun ProviderSettingsScreen(
+    state: SettingsState,
+    errors: FormErrors,
     onBackClick: () -> Unit,
     onApiKeyChanged: (String) -> Unit,
     onModelIdChanged: (String) -> Unit,
@@ -184,7 +184,7 @@ internal fun NativeProviderSettingsScreen(
                 modifier = Modifier.padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                NativeTextField(
+                TextField(
                     "模型 ID",
                     state.modelId,
                     onModelIdChanged,
@@ -193,7 +193,7 @@ internal fun NativeProviderSettingsScreen(
                 )
                 
                 if (state.provider.requiresApiKey) {
-                    NativeTextField(
+                    TextField(
                         "API Key",
                         state.apiKey,
                         onApiKeyChanged,
@@ -204,7 +204,7 @@ internal fun NativeProviderSettingsScreen(
                 }
                 
                 if (state.provider != Provider.BEDROCK) {
-                    NativeTextField(
+                    TextField(
                         state.provider.baseUrlLabel,
                         state.baseUrl,
                         onBaseUrlChanged,
@@ -215,7 +215,7 @@ internal fun NativeProviderSettingsScreen(
                 }
                 
                 state.provider.extraFieldLabel?.let {
-                    NativeTextField(
+                    TextField(
                         it,
                         state.extraConfig,
                         onExtraConfigChanged,
@@ -231,9 +231,9 @@ internal fun NativeProviderSettingsScreen(
 }
 
 @Composable
-internal fun NativeRuntimeSettingsScreen(
-    state: NativeSettingsState,
-    errors: NativeFormErrors,
+internal fun RuntimeSettingsScreen(
+    state: SettingsState,
+    errors: FormErrors,
     onBackClick: () -> Unit,
     onSystemPromptChanged: (String) -> Unit,
     onTemperatureChanged: (String) -> Unit,
@@ -283,7 +283,7 @@ internal fun NativeRuntimeSettingsScreen(
                 modifier = Modifier.padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                NativeTextField(
+                TextField(
                     "System Prompt",
                     state.systemPrompt,
                     onSystemPromptChanged,
@@ -291,7 +291,7 @@ internal fun NativeRuntimeSettingsScreen(
                     singleLine = false
                 )
                 
-                NativeTextField(
+                TextField(
                     "Temperature",
                     state.temperature,
                     onTemperatureChanged,
@@ -300,7 +300,7 @@ internal fun NativeRuntimeSettingsScreen(
                     keyboardType = KeyboardType.Decimal
                 )
                 
-                NativeTextField(
+                TextField(
                     "Max Iterations",
                     state.maxIterations,
                     onMaxIterationsChanged,

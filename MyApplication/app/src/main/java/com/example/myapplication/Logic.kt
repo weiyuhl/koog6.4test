@@ -1,6 +1,6 @@
 package com.example.myapplication
 
-internal data class NativeSettingsState(
+internal data class SettingsState(
     val provider: Provider,
     val apiKey: String,
     val modelId: String,
@@ -13,7 +13,7 @@ internal data class NativeSettingsState(
     val maxIterations: String,
 )
 
-internal fun validateNativeSettings(state: NativeSettingsState): NativeFormErrors = NativeFormErrors(
+internal fun validateSettings(state: SettingsState): FormErrors = FormErrors(
     provider = if (!state.provider.isSupportedOnAndroid) "当前 Android 版本暂不支持该供应商，请切换到其他供应商。" else null,
     modelId = if (state.modelId.isBlank()) "请输入模型 ID" else null,
     apiKey = if (state.provider.requiresApiKey && state.apiKey.isBlank()) "请先输入 API Key" else null,
@@ -33,7 +33,7 @@ internal fun validateNativeSettings(state: NativeSettingsState): NativeFormError
     },
 )
 
-internal fun nativeSettingsSummary(errors: NativeFormErrors): String = buildList {
+internal fun settingsSummary(errors: FormErrors): String = buildList {
     errors.provider?.let(::add)
     errors.modelId?.let(::add)
     errors.apiKey?.let(::add)
@@ -43,7 +43,7 @@ internal fun nativeSettingsSummary(errors: NativeFormErrors): String = buildList
     errors.maxIterations?.let(::add)
 }.joinToString("；")
 
-internal fun NativeSettingsState.toStoredSettings(): StoredSettings = StoredSettings(
+internal fun SettingsState.toStoredSettings(): StoredSettings = StoredSettings(
     providerName = provider.name,
     apiKey = apiKey,
     modelId = modelId,
@@ -55,7 +55,7 @@ internal fun NativeSettingsState.toStoredSettings(): StoredSettings = StoredSett
     maxIterations = maxIterations,
 )
 
-internal fun NativeSettingsState.toAgentRequest(userPrompt: String): AgentRequest = AgentRequest(
+internal fun SettingsState.toAgentRequest(userPrompt: String): AgentRequest = AgentRequest(
     provider = provider,
     apiKey = apiKey.trim(),
     modelId = modelId.trim(),

@@ -59,7 +59,7 @@ fun App() {
         Provider.entries.firstOrNull { it.name == restoredState.settings.providerName } ?: Provider.OPENAI 
     }
     val restoredPreset = remember(localStore) { AgentRuntimePreset.fromId(localStore.loadRuntimePresetId()) }
-    val restoredMessages = remember(restoredState.messages) { restoredState.messages.map { it.toNativeMessage() } }
+    val restoredMessages = remember(restoredState.messages) { restoredState.messages.map { it.toChatMessage() } }
 
     var providerName by rememberSaveable { mutableStateOf(restoredProvider.name) }
     var apiKey by rememberSaveable { mutableStateOf(restoredState.settings.apiKey) }
@@ -71,13 +71,13 @@ fun App() {
     var systemPrompt by rememberSaveable { mutableStateOf(restoredState.settings.systemPrompt) }
     var temperature by rememberSaveable { mutableStateOf(restoredState.settings.temperature) }
     var maxIterations by rememberSaveable { mutableStateOf(restoredState.settings.maxIterations) }
-    var formErrors by remember { mutableStateOf(NativeFormErrors()) }
+    var formErrors by remember { mutableStateOf(FormErrors()) }
     var isRunning by remember { mutableStateOf(false) }
     var nextMessageId by remember { mutableLongStateOf((restoredMessages.maxOfOrNull { it.id } ?: 0L) + 1L) }
-    val messages = remember { mutableStateListOf<NativeChatMessage>().apply { addAll(restoredMessages) } }
+    val messages = remember { mutableStateListOf<ChatMessage>().apply { addAll(restoredMessages) } }
     val provider = remember(providerName) { Provider.valueOf(providerName) }
     val backStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = backStackEntry?.destination?.route ?: NativeRoute.Chat.value
+    val currentRoute = backStackEntry?.destination?.route ?: Route.Chat.value
 
     fun currentState(
         providerValue: Provider = provider,
@@ -90,7 +90,7 @@ fun App() {
         systemPromptValue: String = systemPrompt,
         temperatureValue: String = temperature,
         maxIterationsValue: String = maxIterations
-    ) = NativeSettingsState(
+    ) = SettingsState(
         providerValue,
         apiKeyValue,
         modelIdValue,
@@ -103,23 +103,23 @@ fun App() {
         maxIterationsValue
     )
 
-    fun persistSettings(state: NativeSettingsState = currentState()) {
+    fun persistSettings(state: SettingsState = currentState()) {
         localStore.saveSettings(state.toStoredSettings())
         localStore.saveRuntimePresetId(state.runtimePreset.id)
     }
 
     fun persistMessages() {
-        localStore.saveMessages(messages.map(NativeChatMessage::toStoredMessage))
+        localStore.saveMessages(messages.map(ChatMessage::toStoredMessage))
     }
 
-    fun addMessage(role: NativeMessageRole, text: String, label: String? = null): Long {
-        val message = NativeChatMessage(nextMessageId++, role, text, label)
+    fun addMessage(role: MessageRole, text: String, label: String? = null): Long {
+        val message = ChatMessage(nextMessageId++, role, text, label)
         messages += message
         persistMessages()
         return message.id
     }
 
-    fun updateMessage(id: Long, update: (NativeChatMessage) -> NativeChatMessage) {
+    fun updateMessage(id: Long, update: (ChatMessage) -> ChatMessage) {
         val index = messages.indexOfFirst { it.id == id }
         if (index >= 0) {
             messages[index] = update(messages[index])
@@ -138,7 +138,7 @@ fun App() {
     fun clearChat() {
         messages.clear()
         persistMessages()
-        addMessage(NativeMessageRole.System, "对话已清空。现在可以重新开始聊天。", "新对话")
+        addMessage(MessageRole.System, "对话已清空。现在可以重新开始聊天。", "新对话")
     }
 
     fun navigateTo(route: String) {
@@ -153,58 +153,58 @@ fun App() {
 
     fun openSettings() {
         scope.launch { drawerState.close() }
-        navigateTo(NativeRoute.SettingsHome.value)
+        navigateTo(Route.SettingsHome.value)
     }
 
     fun openChat() {
         scope.launch { drawerState.close() }
-        navigateTo(NativeRoute.Chat.value)
+        navigateTo(Route.Chat.value)
     }
 
     fun submitPrompt() {
         val userPrompt = prompt.trim()
         if (userPrompt.isBlank() || isRunning) return
-        val validation = validateNativeSettings(currentState())
+        val validation = validateSettings(currentState())
         formErrors = validation
         if (validation.hasAny()) {
             addMessage(
-                NativeMessageRole.System,
-                "当前还不能发送消息，请先到设置页完善配置：${nativeSettingsSummary(validation)}",
+                MessageRole.System,
+                "当前还不能发送消息，请先到设置页完善配置：${settingsSummary(validation)}",
                 "设置未完成"
             )
             openSettings()
             return
         }
-        addMessage(NativeMessageRole.User, userPrompt)
-        val assistantId = addMessage(NativeMessageRole.Assistant, NATIVE_STREAMING_PLACEHOLDER, provider.displayName)
+        addMessage(MessageRole.User, userPrompt)
+        val assistantId = addMessage(MessageRole.Assistant, STREAMING_PLACEHOLDER, provider.displayName)
         prompt = ""
         persistSettings(currentState(promptValue = ""))
         isRunning = true
         scope.launch {
             try {
-                val result = KoogAgentRunner.runAgentStreaming(
+                val result = AgentRunner.runAgentStreaming(
                     request = currentState(promptValue = "").toAgentRequest(userPrompt),
                     onTextDelta = { delta ->
                         updateMessage(assistantId) { current ->
                             current.copy(
-                                text = if (current.text == NATIVE_STREAMING_PLACEHOLDER) delta else current.text + delta
+                                text = if (current.text == STREAMING_PLACEHOLDER) delta else current.text + delta
                             )
                         }
                     }
                 )
                 updateMessage(assistantId) { current ->
                     current.copy(
-                        text = current.text.takeUnless { it.isBlank() || it == NATIVE_STREAMING_PLACEHOLDER }
+                        text = current.text.takeUnless { it.isBlank() || it == STREAMING_PLACEHOLDER }
                             ?: result.answer
                     )
                 }
                 if (result.events.isNotEmpty()) {
-                    addMessage(NativeMessageRole.System, result.events.joinToString("\n"), "执行日志")
+                    addMessage(MessageRole.System, result.events.joinToString("\n"), "执行日志")
                 }
             } catch (error: Throwable) {
                 removeMessage(assistantId)
                 addMessage(
-                    NativeMessageRole.System,
+                    MessageRole.System,
                     error.message ?: error::class.simpleName ?: "Unknown error",
                     "错误"
                 )
@@ -241,7 +241,7 @@ fun App() {
                         NavigationDrawerItem(
                             icon = { Text("💬") },
                             label = { Text("聊天") },
-                            selected = currentRoute == NativeRoute.Chat.value,
+                            selected = currentRoute == Route.Chat.value,
                             onClick = ::openChat,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
                         )
@@ -279,7 +279,7 @@ fun App() {
                         NavigationDrawerItem(
                             icon = { Icon(Icons.Default.Settings, contentDescription = null) },
                             label = { Text("设置") },
-                            selected = currentRoute != NativeRoute.Chat.value,
+                            selected = currentRoute != Route.Chat.value,
                             onClick = ::openSettings,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
                         )
@@ -290,11 +290,11 @@ fun App() {
     ) {
         NavHost(
             navController = navController,
-            startDestination = NativeRoute.Chat.value,
+            startDestination = Route.Chat.value,
             modifier = Modifier.fillMaxSize()
         ) {
-            composable(NativeRoute.Chat.value) {
-                NativeChatScreen(
+            composable(Route.Chat.value) {
+                ChatScreen(
                     provider = provider,
                     prompt = prompt,
                     isRunning = isRunning,
@@ -305,23 +305,23 @@ fun App() {
                 )
             }
 
-            composable(NativeRoute.SettingsHome.value) {
-                NativeSettingsHomeScreen(
+            composable(Route.SettingsHome.value) {
+                SettingsHomeScreen(
                     state = currentState(),
                     errors = formErrors,
                     onBackClick = { if (!navController.popBackStack()) openChat() },
                     onOpenProviderSettings = {
-                        navController.navigate(NativeRoute.SettingsModel.value) { launchSingleTop = true }
+                        navController.navigate(Route.SettingsModel.value) { launchSingleTop = true }
                     },
                     onOpenRuntimeSettings = {
-                        navController.navigate(NativeRoute.SettingsRuntime.value) { launchSingleTop = true }
+                        navController.navigate(Route.SettingsRuntime.value) { launchSingleTop = true }
                     },
                     onProviderSelected = { next ->
                         providerName = next.name
                         modelId = next.defaultModelId
                         baseUrl = next.defaultBaseUrl
                         extraConfig = next.extraFieldDefault
-                        formErrors = NativeFormErrors()
+                        formErrors = FormErrors()
                         persistSettings(
                             currentState(
                                 providerValue = next,
@@ -338,8 +338,8 @@ fun App() {
                 )
             }
 
-            composable(NativeRoute.SettingsModel.value) {
-                NativeProviderSettingsScreen(
+            composable(Route.SettingsModel.value) {
+                ProviderSettingsScreen(
                     state = currentState(),
                     errors = formErrors,
                     onBackClick = { navController.popBackStack() },
@@ -366,8 +366,8 @@ fun App() {
                 )
             }
 
-            composable(NativeRoute.SettingsRuntime.value) {
-                NativeRuntimeSettingsScreen(
+            composable(Route.SettingsRuntime.value) {
+                RuntimeSettingsScreen(
                     state = currentState(),
                     errors = formErrors,
                     onBackClick = { navController.popBackStack() },

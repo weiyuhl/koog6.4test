@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.sp
 import com.example.myapplication.components.Text
 
 @Composable
-internal fun NativeTextField(
+internal fun TextField(
     label: String,
     value: String,
     onValueChange: (String) -> Unit,

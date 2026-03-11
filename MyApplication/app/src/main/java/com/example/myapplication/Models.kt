@@ -1,26 +1,26 @@
 package com.example.myapplication
 
-internal enum class NativeRoute(val value: String) {
+internal enum class Route(val value: String) {
     Chat("chat"),
     SettingsHome("settings/home"),
     SettingsModel("settings/model"),
     SettingsRuntime("settings/runtime"),
 }
 
-internal enum class NativeMessageRole {
+internal enum class MessageRole {
     User,
     Assistant,
     System,
 }
 
-internal data class NativeChatMessage(
+internal data class ChatMessage(
     val id: Long,
-    val role: NativeMessageRole,
+    val role: MessageRole,
     val text: String,
     val label: String? = null,
 )
 
-internal data class NativeFormErrors(
+internal data class FormErrors(
     val provider: String? = null,
     val modelId: String? = null,
     val apiKey: String? = null,
@@ -40,16 +40,16 @@ internal data class NativeFormErrors(
     ).any { it != null }
 }
 
-internal const val NATIVE_STREAMING_PLACEHOLDER = "正在思考…"
+internal const val STREAMING_PLACEHOLDER = "正在思考…"
 
-internal fun StoredChatMessage.toNativeMessage(): NativeChatMessage = NativeChatMessage(
+internal fun StoredChatMessage.toChatMessage(): ChatMessage = ChatMessage(
     id = id,
-    role = runCatching { NativeMessageRole.valueOf(role) }.getOrDefault(NativeMessageRole.System),
+    role = runCatching { MessageRole.valueOf(role) }.getOrDefault(MessageRole.System),
     text = text,
     label = label,
 )
 
-internal fun NativeChatMessage.toStoredMessage(): StoredChatMessage = StoredChatMessage(
+internal fun ChatMessage.toStoredMessage(): StoredChatMessage = StoredChatMessage(
     id = id,
     role = role.name,
     text = text,

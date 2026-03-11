@@ -59,7 +59,7 @@ internal data class RuntimeToolAssembly(
     val promptAddendum: String,
 )
 
-object KoogAgentRunner {
+object AgentRunner {
     suspend fun runAgent(request: AgentRequest): AgentExecutionResult = runAgentStreaming(request)
 
     suspend fun runAgentStreaming(

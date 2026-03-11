@@ -41,11 +41,11 @@ import com.example.myapplication.components.Text
 import com.example.myapplication.components.TopAppBar
 
 @Composable
-internal fun NativeChatScreen(
+internal fun ChatScreen(
     provider: Provider,
     prompt: String,
     isRunning: Boolean,
-    messages: List<NativeChatMessage>,
+    messages: List<ChatMessage>,
     onPromptChanged: (String) -> Unit,
     onSendClick: () -> Unit,
     onMenuClick: () -> Unit,
@@ -86,7 +86,7 @@ internal fun NativeChatScreen(
             }
         },
         bottomBar = {
-            NativeChatComposer(
+            ChatComposer(
                 value = prompt,
                 enabled = !isRunning,
                 onValueChange = onPromptChanged,
@@ -111,7 +111,7 @@ internal fun NativeChatScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(messages, key = { it.id }) { message ->
-                        NativeMessageBubble(message = message)
+                        MessageBubble(message = message)
                     }
                 }
             }
@@ -149,17 +149,17 @@ private fun EmptyStateView() {
 }
 
 @Composable
-private fun NativeMessageBubble(message: NativeChatMessage) {
+private fun MessageBubble(message: ChatMessage) {
     val roleLabel = when (message.role) {
-        NativeMessageRole.User -> "你"
-        NativeMessageRole.Assistant -> message.label ?: "AI"
-        NativeMessageRole.System -> "系统"
+        MessageRole.User -> "你"
+        MessageRole.Assistant -> message.label ?: "AI"
+        MessageRole.System -> "系统"
     }
     
     val roleColor = when (message.role) {
-        NativeMessageRole.User -> Color(0xFF007AFF)
-        NativeMessageRole.Assistant -> Color(0xFF34C759)
-        NativeMessageRole.System -> Color(0xFFFF9500)
+        MessageRole.User -> Color(0xFF007AFF)
+        MessageRole.Assistant -> Color(0xFF34C759)
+        MessageRole.System -> Color(0xFFFF9500)
     }
 
     Row(
@@ -202,7 +202,7 @@ private fun NativeMessageBubble(message: NativeChatMessage) {
 }
 
 @Composable
-private fun NativeChatComposer(
+private fun ChatComposer(
     value: String,
     enabled: Boolean,
     onValueChange: (String) -> Unit,
