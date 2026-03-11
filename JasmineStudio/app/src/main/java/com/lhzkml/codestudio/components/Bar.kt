@@ -64,48 +64,43 @@ fun Bar(
         )
         
         // 导航栏内容
-        Surface(
-            shadowElevation = 2.dp,
-            color = Color.White
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+                .background(Color.White)
+                .padding(horizontal = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-                    .background(Color.White)
-                    .padding(horizontal = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // 左侧：返回键或自定义图标
-                Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
-                    when {
-                        navigationIcon != null -> navigationIcon()
-                        onBackClick != null -> {
-                            IconButton(onClick = onBackClick) {
-                                Text(
-                                    "←",
-                                    fontSize = 24.sp,
-                                    color = Color(0xFF333333)
-                                )
-                            }
+            // 左侧：返回键或自定义图标
+            Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                when {
+                    navigationIcon != null -> navigationIcon()
+                    onBackClick != null -> {
+                        IconButton(onClick = onBackClick) {
+                            Text(
+                                "←",
+                                fontSize = 24.sp,
+                                color = Color(0xFF333333)
+                            )
                         }
                     }
                 }
-                
-                // 中间：标题
-                Text(
-                    title,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF333333),
-                    modifier = Modifier.weight(1f).padding(horizontal = 8.dp)
-                )
-                
-                // 右侧：操作按钮
-                Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
-                    actions?.invoke()
-                }
+            }
+            
+            // 中间：标题
+            Text(
+                title,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF333333),
+                modifier = Modifier.weight(1f).padding(horizontal = 8.dp)
+            )
+            
+            // 右侧：操作按钮
+            Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                actions?.invoke()
             }
         }
     }
