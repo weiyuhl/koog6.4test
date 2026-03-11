@@ -177,6 +177,22 @@ internal class SettingsViewModel(
     
     private fun persistSettings() {
         val state = _uiState.value
+        
+        // 执行校验并更新 formErrors
+        val domainState = State(
+            provider = state.provider,
+            apiKey = state.apiKey,
+            modelId = state.modelId,
+            baseUrl = state.baseUrl,
+            extraConfig = state.extraConfig,
+            runtimePreset = state.runtimePreset,
+            systemPrompt = state.systemPrompt,
+            temperature = state.temperature,
+            maxIterations = state.maxIterations
+        )
+        val errors = validateSettings(domainState)
+        _uiState.update { it.copy(formErrors = errors) }
+        
         settingsRepository.updateSettings(
             StoredSettings(
                 providerName = state.provider.name,
@@ -184,7 +200,6 @@ internal class SettingsViewModel(
                 modelId = state.modelId,
                 baseUrl = state.baseUrl,
                 extraConfig = state.extraConfig,
-                promptDraft = "",
                 systemPrompt = state.systemPrompt,
                 temperature = state.temperature,
                 maxIterations = state.maxIterations

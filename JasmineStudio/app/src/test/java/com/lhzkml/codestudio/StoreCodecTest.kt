@@ -13,7 +13,6 @@ class StoreCodecTest {
             modelId = "openai/gpt-4o-mini",
             baseUrl = "https://openrouter.ai/api/v1",
             extraConfig = "2024-10-21",
-            promptDraft = "你好\n请继续",
             systemPrompt = "Always cite the provider.",
             temperature = "0.7",
             maxIterations = "25",
@@ -42,7 +41,27 @@ class StoreCodecTest {
     }
 
     @Test
-    fun legacy_settings_payload_returns_null() {
+    fun legacy_settings_payload_with_promptDraft_can_be_decoded() {
+        // 旧格式包含 promptDraft（9个字段）
+        val legacy = listOf(
+            "OPENAI", "key", "gpt-4o-mini", "https://api.openai.com", "", 
+            "hello", // promptDraft (会被忽略)
+            "system", "0.3", "12"
+        ).joinToString("\t")
+
+        val decoded = StoreCodec.decodeSettings(legacy)
+        
+        assertEquals("OPENAI", decoded?.providerName)
+        assertEquals("key", decoded?.apiKey)
+        assertEquals("gpt-4o-mini", decoded?.modelId)
+        assertEquals("system", decoded?.systemPrompt)
+        assertEquals("0.3", decoded?.temperature)
+        assertEquals("12", decoded?.maxIterations)
+    }
+
+    @Test
+    fun legacy_settings_payload_with_fewer_fields_returns_null() {
+        // 只有6个字段的旧格式应该返回 null
         val legacy = StoreCodec.encodeSettings(
             StoredSettings(
                 providerName = "OPENAI",
@@ -50,21 +69,12 @@ class StoreCodecTest {
                 modelId = "gpt-4o-mini",
                 baseUrl = "https://api.openai.com",
                 extraConfig = "",
-                promptDraft = "hello",
+                systemPrompt = "system",
+                temperature = "0.3",
+                maxIterations = "12"
             )
         ).split("\t").take(6).joinToString("\t")
 
-        assertNull(StoreCodec.decodeSettings(legacy))
-    }
-
-    @Test
-    fun old_long_payload_returns_null() {
-        val legacy = listOf(
-            "OPENAI", "key", "gpt-4o-mini", "https://api.openai.com", "", "hello",
-            "system", "0.3", "12",
-        ).joinToString("\t")
-
-        // 旧格式应该返回null，因为字段数不匹配
         assertNull(StoreCodec.decodeSettings(legacy))
     }
 }

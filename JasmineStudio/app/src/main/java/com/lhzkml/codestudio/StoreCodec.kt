@@ -10,7 +10,6 @@ data class StoredSettings(
     val modelId: String,
     val baseUrl: String,
     val extraConfig: String,
-    val promptDraft: String,
     val systemPrompt: String = "",
     val temperature: String = "0.2",
     val maxIterations: String = "50",
@@ -35,7 +34,6 @@ object StoreCodec {
         settings.modelId,
         settings.baseUrl,
         settings.extraConfig,
-        settings.promptDraft,
         settings.systemPrompt,
         settings.temperature,
         settings.maxIterations,
@@ -44,7 +42,8 @@ object StoreCodec {
     fun decodeSettings(raw: String?): StoredSettings? {
         if (raw.isNullOrBlank()) return null
         val parts = raw.split("\t")
-        if (parts.size != 9) return null
+        // 兼容旧格式（9个字段包含 promptDraft）和新格式（8个字段）
+        if (parts.size != 8 && parts.size != 9) return null
 
         return StoredSettings(
             providerName = unescape(parts[0]),
@@ -52,10 +51,22 @@ object StoreCodec {
             modelId = unescape(parts[2]),
             baseUrl = unescape(parts[3]),
             extraConfig = unescape(parts[4]),
-            promptDraft = unescape(parts[5]),
-            systemPrompt = parts.getOrNull(6)?.let(::unescape).orEmpty(),
-            temperature = parts.getOrNull(7)?.let(::unescape) ?: "0.2",
-            maxIterations = parts.getOrNull(8)?.let(::unescape) ?: "50",
+            // 如果是旧格式（9个字段），跳过 parts[5] promptDraft
+            systemPrompt = if (parts.size == 9) {
+                parts.getOrNull(6)?.let(::unescape).orEmpty()
+            } else {
+                parts.getOrNull(5)?.let(::unescape).orEmpty()
+            },
+            temperature = if (parts.size == 9) {
+                parts.getOrNull(7)?.let(::unescape) ?: "0.2"
+            } else {
+                parts.getOrNull(6)?.let(::unescape) ?: "0.2"
+            },
+            maxIterations = if (parts.size == 9) {
+                parts.getOrNull(8)?.let(::unescape) ?: "50"
+            } else {
+                parts.getOrNull(7)?.let(::unescape) ?: "50"
+            },
         )
     }
 

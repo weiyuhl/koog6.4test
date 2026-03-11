@@ -1,6 +1,7 @@
 package com.lhzkml.codestudio.usecase
 
 import com.lhzkml.codestudio.*
+import com.lhzkml.codestudio.validation.ValidationService
 
 internal class SendMessageUseCase(
     private val agentRunner: AgentRunner = AgentRunner
@@ -11,8 +12,14 @@ internal class SendMessageUseCase(
         onTextDelta: (String) -> Unit
     ): Result<SendMessageResult> {
         return try {
-            // 验证请求
-            val validation = validateRequest(request)
+            // 使用统一的校验服务
+            val validation = ValidationService.validateSendMessageRequest(
+                userPrompt = request.userPrompt,
+                provider = request.provider,
+                apiKey = request.apiKey,
+                modelId = request.modelId,
+                baseUrl = request.baseUrl
+            )
             if (validation != null) {
                 return Result.failure(ValidationException(validation))
             }
@@ -34,16 +41,6 @@ internal class SendMessageUseCase(
             )
         } catch (e: Throwable) {
             Result.failure(e)
-        }
-    }
-    
-    private fun validateRequest(request: SendMessageRequest): String? {
-        return when {
-            request.userPrompt.isBlank() -> "消息不能为空"
-            request.apiKey.isBlank() && request.requiresApiKey -> "API Key 不能为空"
-            request.modelId.isBlank() -> "模型 ID 不能为空"
-            request.baseUrl.isBlank() && request.requiresBaseUrl -> "Base URL 不能为空"
-            else -> null
         }
     }
     

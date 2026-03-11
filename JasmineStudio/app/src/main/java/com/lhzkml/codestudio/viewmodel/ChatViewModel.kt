@@ -93,7 +93,6 @@ internal class ChatViewModel(
                 modelId = settings.modelId,
                 baseUrl = settings.baseUrl,
                 extraConfig = settings.extraConfig,
-                promptDraft = "",
                 runtimePreset = preset,
                 systemPrompt = settings.systemPrompt,
                 temperature = settings.temperature,

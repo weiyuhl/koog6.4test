@@ -76,7 +76,7 @@ internal fun SettingsUiModel.toProviderUiModel(errors: FormErrors): ProviderSett
     return ProviderSettingsUiModel(
         providerDisplayName = providerDisplayName,
         modelId = modelId,
-        modelIdPlaceholder = extraFieldDefault,
+        modelIdPlaceholder = defaultModelId,
         apiKey = apiKey,
         apiKeyPlaceholder = "输入 API 密钥",
         showApiKey = requiresApiKey,

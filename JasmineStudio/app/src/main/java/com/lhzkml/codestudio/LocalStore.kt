@@ -34,7 +34,6 @@ class LocalStore(context: Context) {
         modelId = Provider.OPENAI.defaultModelId,
         baseUrl = Provider.OPENAI.defaultBaseUrl,
         extraConfig = Provider.OPENAI.extraFieldDefault,
-        promptDraft = "",
         systemPrompt = "",
         temperature = "0.2",
         maxIterations = "50",
