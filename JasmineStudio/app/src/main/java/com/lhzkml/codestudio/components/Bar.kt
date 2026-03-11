@@ -1,5 +1,6 @@
 package com.lhzkml.codestudio.components
 
+import android.app.Activity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,12 +12,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
 
 @Composable
 fun Bar(
@@ -24,8 +29,31 @@ fun Bar(
     modifier: Modifier = Modifier,
     onBackClick: (() -> Unit)? = null,
     navigationIcon: @Composable (() -> Unit)? = null,
-    actions: @Composable (() -> Unit)? = null
+    actions: @Composable (() -> Unit)? = null,
+    interceptBackPress: Boolean = true
 ) {
+    val context = LocalContext.current
+    
+    // 拦截系统返回键和手势
+    DisposableEffect(onBackClick, interceptBackPress) {
+        val callback = if (onBackClick != null && interceptBackPress) {
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    onBackClick()
+                }
+            }
+        } else null
+        
+        val activity = context as? ComponentActivity
+        if (callback != null && activity != null) {
+            activity.onBackPressedDispatcher.addCallback(callback)
+        }
+        
+        onDispose {
+            callback?.remove()
+        }
+    }
+    
     Column(modifier = modifier.fillMaxWidth()) {
         // 状态栏区域 - 白色背景
         Box(
