@@ -42,7 +42,7 @@ import com.example.myapplication.components.TopAppBar
 
 @Composable
 internal fun NativeChatScreen(
-    provider: KoogProvider,
+    provider: Provider,
     prompt: String,
     isRunning: Boolean,
     messages: List<NativeChatMessage>,

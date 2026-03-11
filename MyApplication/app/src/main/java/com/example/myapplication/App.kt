@@ -48,7 +48,7 @@ import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.launch
 
 @Composable
-fun KoogNativeApp() {
+fun App() {
     val appContext = LocalContext.current.applicationContext
     val navController = rememberNavController()
     val scope = rememberCoroutineScope()
@@ -56,7 +56,7 @@ fun KoogNativeApp() {
     val localStore = remember(appContext) { AppLocalStore(appContext) }
     val restoredState = remember(localStore) { localStore.loadState() }
     val restoredProvider = remember(restoredState.settings.providerName) { 
-        KoogProvider.entries.firstOrNull { it.name == restoredState.settings.providerName } ?: KoogProvider.OPENAI 
+        Provider.entries.firstOrNull { it.name == restoredState.settings.providerName } ?: Provider.OPENAI 
     }
     val restoredPreset = remember(localStore) { AgentRuntimePreset.fromId(localStore.loadRuntimePresetId()) }
     val restoredMessages = remember(restoredState.messages) { restoredState.messages.map { it.toNativeMessage() } }
@@ -75,12 +75,12 @@ fun KoogNativeApp() {
     var isRunning by remember { mutableStateOf(false) }
     var nextMessageId by remember { mutableLongStateOf((restoredMessages.maxOfOrNull { it.id } ?: 0L) + 1L) }
     val messages = remember { mutableStateListOf<NativeChatMessage>().apply { addAll(restoredMessages) } }
-    val provider = remember(providerName) { KoogProvider.valueOf(providerName) }
+    val provider = remember(providerName) { Provider.valueOf(providerName) }
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route ?: NativeRoute.Chat.value
 
     fun currentState(
-        providerValue: KoogProvider = provider,
+        providerValue: Provider = provider,
         apiKeyValue: String = apiKey,
         modelIdValue: String = modelId,
         baseUrlValue: String = baseUrl,

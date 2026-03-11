@@ -25,7 +25,7 @@ object AppColors {
 }
 
 @Composable
-fun KoogAppTheme(
+fun AppTheme(
     content: @Composable () -> Unit
 ) {
     content()

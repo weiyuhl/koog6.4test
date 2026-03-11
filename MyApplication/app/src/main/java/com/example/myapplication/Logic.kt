@@ -1,7 +1,7 @@
 package com.example.myapplication
 
 internal data class NativeSettingsState(
-    val provider: KoogProvider,
+    val provider: Provider,
     val apiKey: String,
     val modelId: String,
     val baseUrl: String,
@@ -17,7 +17,7 @@ internal fun validateNativeSettings(state: NativeSettingsState): NativeFormError
     provider = if (!state.provider.isSupportedOnAndroid) "当前 Android 版本暂不支持该供应商，请切换到其他供应商。" else null,
     modelId = if (state.modelId.isBlank()) "请输入模型 ID" else null,
     apiKey = if (state.provider.requiresApiKey && state.apiKey.isBlank()) "请先输入 API Key" else null,
-    baseUrl = if ((state.provider == KoogProvider.AZURE_OPENAI || state.provider == KoogProvider.OLLAMA) && state.baseUrl.isBlank()) "该供应商需要 Base URL" else null,
+    baseUrl = if ((state.provider == Provider.AZURE_OPENAI || state.provider == Provider.OLLAMA) && state.baseUrl.isBlank()) "该供应商需要 Base URL" else null,
     extraConfig = if (state.provider.extraFieldLabel != null && state.extraConfig.isBlank()) "请填写该供应商所需的额外配置" else null,
     temperature = when {
         state.temperature.isBlank() -> "请输入 temperature"

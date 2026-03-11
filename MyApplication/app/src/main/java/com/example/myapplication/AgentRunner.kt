@@ -313,14 +313,14 @@ object KoogAgentRunner {
         val baseUrl = request.baseUrl.ifBlank { request.provider.defaultBaseUrl }.trim()
 
         return when (request.provider) {
-            KoogProvider.OPENAI -> SingleLLMPromptExecutor(
+            Provider.OPENAI -> SingleLLMPromptExecutor(
                 OpenAILLMClient(
                     apiKey = apiKey,
                     settings = OpenAIClientSettings(baseUrl = baseUrl),
                 )
             )
 
-            KoogProvider.AZURE_OPENAI -> {
+            Provider.AZURE_OPENAI -> {
                 val version = AzureOpenAIServiceVersion.fromString(request.extraConfig.ifBlank { "2024-10-21" })
                 SingleLLMPromptExecutor(
                     OpenAILLMClient(
@@ -330,51 +330,51 @@ object KoogAgentRunner {
                 )
             }
 
-            KoogProvider.ANTHROPIC -> SingleLLMPromptExecutor(
+            Provider.ANTHROPIC -> SingleLLMPromptExecutor(
                 AnthropicLLMClient(
                     apiKey = apiKey,
                     settings = anthropicSettings(baseUrl = baseUrl, model = model),
                 )
             )
 
-            KoogProvider.GOOGLE -> SingleLLMPromptExecutor(
+            Provider.GOOGLE -> SingleLLMPromptExecutor(
                 GoogleLLMClient(
                     apiKey = apiKey,
                     settings = GoogleClientSettings(baseUrl = baseUrl),
                 )
             )
 
-            KoogProvider.OPENROUTER -> SingleLLMPromptExecutor(
+            Provider.OPENROUTER -> SingleLLMPromptExecutor(
                 OpenRouterLLMClient(
                     apiKey = apiKey,
                     settings = OpenRouterClientSettings(baseUrl = baseUrl),
                 )
             )
 
-            KoogProvider.OLLAMA -> SingleLLMPromptExecutor(OllamaClient(baseUrl = baseUrl))
+            Provider.OLLAMA -> SingleLLMPromptExecutor(OllamaClient(baseUrl = baseUrl))
 
-            KoogProvider.DEEPSEEK -> SingleLLMPromptExecutor(
+            Provider.DEEPSEEK -> SingleLLMPromptExecutor(
                 DeepSeekLLMClient(
                     apiKey = apiKey,
                     settings = DeepSeekClientSettings(baseUrl = baseUrl),
                 )
             )
 
-            KoogProvider.MISTRAL -> SingleLLMPromptExecutor(
+            Provider.MISTRAL -> SingleLLMPromptExecutor(
                 MistralAILLMClient(
                     apiKey = apiKey,
                     settings = MistralAIClientSettings(baseUrl = baseUrl),
                 )
             )
 
-            KoogProvider.DASHSCOPE -> SingleLLMPromptExecutor(
+            Provider.DASHSCOPE -> SingleLLMPromptExecutor(
                 DashscopeLLMClient(
                     apiKey = apiKey,
                     settings = DashscopeClientSettings(baseUrl = baseUrl),
                 )
             )
 
-            KoogProvider.BEDROCK -> error("Unsupported path should have been blocked earlier.")
+            Provider.BEDROCK -> error("Unsupported path should have been blocked earlier.")
         }
     }
 
@@ -398,13 +398,13 @@ object KoogAgentRunner {
         }
     }
 
-    private fun resolveModel(provider: KoogProvider, modelId: String): LLModel {
+    private fun resolveModel(provider: Provider, modelId: String): LLModel {
         val normalized = modelId.trim()
         val id = normalized.lowercase()
 
         return when (provider) {
-            KoogProvider.OPENAI,
-            KoogProvider.AZURE_OPENAI,
+            Provider.OPENAI,
+            Provider.AZURE_OPENAI,
             -> when (id) {
                 OpenAIModels.Chat.GPT4oMini.id -> OpenAIModels.Chat.GPT4oMini
                 OpenAIModels.Chat.GPT4_1.id -> OpenAIModels.Chat.GPT4_1
@@ -413,7 +413,7 @@ object KoogAgentRunner {
                 else -> genericToolCapableModel(LLMProvider.OpenAI, normalized, openAICompatible = true)
             }
 
-            KoogProvider.ANTHROPIC -> when (id) {
+            Provider.ANTHROPIC -> when (id) {
                 AnthropicModels.Sonnet_3_7.id -> AnthropicModels.Sonnet_3_7
                 AnthropicModels.Sonnet_4.id -> AnthropicModels.Sonnet_4
                 AnthropicModels.Opus_4.id -> AnthropicModels.Opus_4
@@ -423,48 +423,48 @@ object KoogAgentRunner {
                 else -> genericToolCapableModel(LLMProvider.Anthropic, normalized)
             }
 
-            KoogProvider.GOOGLE -> when (id) {
+            Provider.GOOGLE -> when (id) {
                 GoogleModels.Gemini2_5Flash.id -> GoogleModels.Gemini2_5Flash
                 GoogleModels.Gemini2_5Pro.id -> GoogleModels.Gemini2_5Pro
                 GoogleModels.Gemini3_Pro_Preview.id -> GoogleModels.Gemini3_Pro_Preview
                 else -> genericToolCapableModel(LLMProvider.Google, normalized)
             }
 
-            KoogProvider.OPENROUTER -> when (id) {
+            Provider.OPENROUTER -> when (id) {
                 OpenRouterModels.GPT4oMini.id -> OpenRouterModels.GPT4oMini
                 OpenRouterModels.DeepSeekV30324.id -> OpenRouterModels.DeepSeekV30324
                 OpenRouterModels.Qwen3VL.id -> OpenRouterModels.Qwen3VL
                 else -> genericToolCapableModel(LLMProvider.OpenRouter, normalized)
             }
 
-            KoogProvider.OLLAMA -> when (id) {
+            Provider.OLLAMA -> when (id) {
                 OllamaModels.Meta.LLAMA_3_2.id -> OllamaModels.Meta.LLAMA_3_2
                 OllamaModels.Meta.LLAMA_4.id -> OllamaModels.Meta.LLAMA_4
                 OllamaModels.Alibaba.QWEN_3_06B.id -> OllamaModels.Alibaba.QWEN_3_06B
                 else -> genericToolCapableModel(LLMProvider.Ollama, normalized)
             }
 
-            KoogProvider.DEEPSEEK -> when (id) {
+            Provider.DEEPSEEK -> when (id) {
                 DeepSeekModels.DeepSeekChat.id -> DeepSeekModels.DeepSeekChat
                 DeepSeekModels.DeepSeekReasoner.id -> DeepSeekModels.DeepSeekReasoner
                 else -> genericToolCapableModel(LLMProvider.DeepSeek, normalized)
             }
 
-            KoogProvider.MISTRAL -> when (id) {
+            Provider.MISTRAL -> when (id) {
                 MistralAIModels.Chat.MistralSmall2.id -> MistralAIModels.Chat.MistralSmall2
                 MistralAIModels.Chat.MistralMedium31.id -> MistralAIModels.Chat.MistralMedium31
                 MistralAIModels.Chat.Codestral.id -> MistralAIModels.Chat.Codestral
                 else -> genericToolCapableModel(LLMProvider.MistralAI, normalized)
             }
 
-            KoogProvider.DASHSCOPE -> when (id) {
+            Provider.DASHSCOPE -> when (id) {
                 DashscopeModels.QWEN_FLASH.id -> DashscopeModels.QWEN_FLASH
                 DashscopeModels.QWEN_PLUS.id -> DashscopeModels.QWEN_PLUS
                 DashscopeModels.QWEN_PLUS_LATEST.id -> DashscopeModels.QWEN_PLUS_LATEST
                 else -> genericToolCapableModel(LLMProvider.Alibaba, normalized)
             }
 
-            KoogProvider.BEDROCK -> genericToolCapableModel(LLMProvider.Bedrock, normalized)
+            Provider.BEDROCK -> genericToolCapableModel(LLMProvider.Bedrock, normalized)
         }
     }
 

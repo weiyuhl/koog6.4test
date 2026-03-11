@@ -1,7 +1,7 @@
 package com.example.myapplication
 
 data class AgentRequest(
-    val provider: KoogProvider,
+    val provider: Provider,
     val apiKey: String,
     val modelId: String,
     val baseUrl: String,
@@ -61,7 +61,7 @@ data class AgentTimelineEntry(
     val executionPath: String? = null,
 )
 
-enum class KoogProvider(
+enum class Provider(
     val displayName: String,
     val defaultModelId: String,
     val defaultBaseUrl: String,

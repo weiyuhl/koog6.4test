@@ -10,8 +10,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            KoogAppTheme {
-                KoogNativeApp()
+            AppTheme {
+                App()
             }
         }
     }

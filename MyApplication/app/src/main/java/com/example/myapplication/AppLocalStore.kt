@@ -29,11 +29,11 @@ class AppLocalStore(context: Context) {
     }
 
     private fun defaultSettings(): StoredSettings = StoredSettings(
-        providerName = KoogProvider.OPENAI.name,
+        providerName = Provider.OPENAI.name,
         apiKey = "",
-        modelId = KoogProvider.OPENAI.defaultModelId,
-        baseUrl = KoogProvider.OPENAI.defaultBaseUrl,
-        extraConfig = KoogProvider.OPENAI.extraFieldDefault,
+        modelId = Provider.OPENAI.defaultModelId,
+        baseUrl = Provider.OPENAI.defaultBaseUrl,
+        extraConfig = Provider.OPENAI.extraFieldDefault,
         promptDraft = "",
         systemPrompt = "",
         temperature = "0.2",

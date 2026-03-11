@@ -64,7 +64,7 @@ object PlannerLabRunner {
     }
 
     fun metadataPreview(
-        provider: KoogProvider,
+        provider: Provider,
         modelId: String,
         apiKey: String,
         systemPrompt: String,

@@ -126,7 +126,7 @@ internal fun NativeProviderSettingsScreen(
     state: NativeSettingsState,
     errors: NativeFormErrors,
     onBackClick: () -> Unit,
-    onProviderSelected: (KoogProvider) -> Unit,
+    onProviderSelected: (Provider) -> Unit,
     onApiKeyChanged: (String) -> Unit,
     onModelIdChanged: (String) -> Unit,
     onBaseUrlChanged: (String) -> Unit,
@@ -178,7 +178,7 @@ internal fun NativeProviderSettingsScreen(
                     .background(Color.White)
                     .padding(vertical = 8.dp)
             ) {
-                KoogProvider.entries.forEach { provider ->
+                Provider.entries.forEach { provider ->
                     ProviderItem(
                         provider = provider,
                         selected = provider == state.provider,
@@ -212,7 +212,7 @@ internal fun NativeProviderSettingsScreen(
                     )
                 }
                 
-                if (state.provider != KoogProvider.BEDROCK) {
+                if (state.provider != Provider.BEDROCK) {
                     NativeTextField(
                         state.provider.baseUrlLabel,
                         state.baseUrl,
@@ -382,7 +382,7 @@ private fun SettingsItem(
 
 @Composable
 private fun ProviderItem(
-    provider: KoogProvider,
+    provider: Provider,
     selected: Boolean,
     onSelect: () -> Unit
 ) {
