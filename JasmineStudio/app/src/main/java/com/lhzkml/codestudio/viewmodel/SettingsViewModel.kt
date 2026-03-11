@@ -1,12 +1,16 @@
 package com.lhzkml.codestudio.viewmodel
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.lhzkml.codestudio.*
 import com.lhzkml.codestudio.repository.SettingsRepository
+import com.lhzkml.codestudio.ui.model.SettingsUiModel
+import com.lhzkml.codestudio.ui.model.toUiModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 internal data class SettingsUiState(
     val provider: Provider = Provider.OPENAI,
@@ -41,28 +45,36 @@ internal class SettingsViewModel(
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
     
     init {
-        loadSettings()
+        observeSettings()
     }
     
-    private fun loadSettings() {
-        val settings = settingsRepository.loadSettings()
-        val provider = Provider.entries.firstOrNull { 
-            it.name == settings.providerName 
-        } ?: Provider.OPENAI
-        val preset = Preset.fromId(settingsRepository.loadRuntimePresetId())
+    private fun observeSettings() {
+        viewModelScope.launch {
+            settingsRepository.settingsFlow.collect { settings ->
+                val provider = Provider.entries.firstOrNull { 
+                    it.name == settings.providerName 
+                } ?: Provider.OPENAI
+                
+                _uiState.update {
+                    it.copy(
+                        provider = provider,
+                        apiKey = settings.apiKey,
+                        modelId = settings.modelId,
+                        baseUrl = settings.baseUrl,
+                        extraConfig = settings.extraConfig,
+                        systemPrompt = settings.systemPrompt,
+                        temperature = settings.temperature,
+                        maxIterations = settings.maxIterations
+                    )
+                }
+            }
+        }
         
-        _uiState.update {
-            it.copy(
-                provider = provider,
-                apiKey = settings.apiKey,
-                modelId = settings.modelId,
-                baseUrl = settings.baseUrl,
-                extraConfig = settings.extraConfig,
-                runtimePreset = preset,
-                systemPrompt = settings.systemPrompt,
-                temperature = settings.temperature,
-                maxIterations = settings.maxIterations
-            )
+        viewModelScope.launch {
+            settingsRepository.presetIdFlow.collect { presetId ->
+                val preset = Preset.fromId(presetId)
+                _uiState.update { it.copy(runtimePreset = preset) }
+            }
         }
     }
     
@@ -135,7 +147,7 @@ internal class SettingsViewModel(
     
     private fun updateRuntimePreset(preset: Preset) {
         _uiState.update { it.copy(runtimePreset = preset) }
-        settingsRepository.saveRuntimePresetId(preset.id)
+        settingsRepository.updatePresetId(preset.id)
     }
     
     private fun updateSystemPrompt(value: String) {
@@ -165,7 +177,7 @@ internal class SettingsViewModel(
     
     private fun persistSettings() {
         val state = _uiState.value
-        settingsRepository.saveSettings(
+        settingsRepository.updateSettings(
             StoredSettings(
                 providerName = state.provider.name,
                 apiKey = state.apiKey,
@@ -179,6 +191,8 @@ internal class SettingsViewModel(
             )
         )
     }
+    
+    fun toUiModel(): SettingsUiModel = _uiState.value.toUiModel()
     
     fun toState(): State = _uiState.value.let {
         State(

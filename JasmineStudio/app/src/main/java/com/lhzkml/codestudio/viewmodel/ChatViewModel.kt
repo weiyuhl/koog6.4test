@@ -6,6 +6,7 @@ import com.lhzkml.codestudio.*
 import com.lhzkml.codestudio.repository.ChatRepository
 import com.lhzkml.codestudio.repository.SettingsRepository
 import com.lhzkml.codestudio.usecase.SendMessageUseCase
+import com.lhzkml.codestudio.usecase.toSendMessageRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -38,7 +39,7 @@ internal class ChatViewModel(
     
     init {
         loadMessages()
-        loadProvider()
+        observeSettings()
     }
     
     private fun loadMessages() {
@@ -47,12 +48,15 @@ internal class ChatViewModel(
         _uiState.update { it.copy(messages = messages) }
     }
     
-    private fun loadProvider() {
-        val settings = settingsRepository.loadSettings()
-        val provider = Provider.entries.firstOrNull { 
-            it.name == settings.providerName 
-        } ?: Provider.OPENAI
-        _uiState.update { it.copy(provider = provider) }
+    private fun observeSettings() {
+        viewModelScope.launch {
+            settingsRepository.settingsFlow.collect { settings ->
+                val provider = Provider.entries.firstOrNull { 
+                    it.name == settings.providerName 
+                } ?: Provider.OPENAI
+                _uiState.update { it.copy(provider = provider) }
+            }
+        }
     }
     
     fun onEvent(event: ChatEvent) {
@@ -79,8 +83,8 @@ internal class ChatViewModel(
         _uiState.update { it.copy(prompt = "", isRunning = true) }
         
         viewModelScope.launch {
-            val settings = settingsRepository.loadSettings()
-            val presetId = settingsRepository.loadRuntimePresetId()
+            val settings = settingsRepository.settingsFlow.value
+            val presetId = settingsRepository.presetIdFlow.value
             val preset = Preset.fromId(presetId)
             
             val state = State(
@@ -109,8 +113,7 @@ internal class ChatViewModel(
             }
             
             val result = sendMessageUseCase.execute(
-                state = state,
-                userPrompt = userPrompt,
+                request = state.toSendMessageRequest(userPrompt),
                 onTextDelta = { delta ->
                     updateMessage(assistantId) { current ->
                         current.copy(
@@ -121,15 +124,15 @@ internal class ChatViewModel(
             )
             
             result.fold(
-                onSuccess = { agentResult ->
+                onSuccess = { sendResult ->
                     updateMessage(assistantId) { current ->
                         current.copy(
                             text = current.text.takeUnless { it.isBlank() || it == STREAMING_PLACEHOLDER }
-                                ?: agentResult.answer
+                                ?: sendResult.answer
                         )
                     }
-                    if (agentResult.events.isNotEmpty()) {
-                        addMessage(MessageRole.System, agentResult.events.joinToString("\n"), "执行日志")
+                    if (sendResult.hasEvents) {
+                        addMessage(MessageRole.System, sendResult.events.joinToString("\n"), "执行日志")
                     }
                 },
                 onFailure = { error ->
