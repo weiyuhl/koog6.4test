@@ -1,5 +1,6 @@
 package com.example.myapplication
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,33 +10,38 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,118 +55,246 @@ internal fun NativeChatScreen(
     onMenuClick: () -> Unit,
 ) {
     val listState = rememberLazyListState()
-    LaunchedEffect(messages.size, isRunning) { if (messages.isNotEmpty()) listState.animateScrollToItem(messages.lastIndex) }
+    LaunchedEffect(messages.size, isRunning) { 
+        if (messages.isNotEmpty()) listState.animateScrollToItem(messages.lastIndex) 
+    }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text("聊天")
-                        Text(provider.displayName, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onMenuClick) { Text("☰") }
-                },
-            )
-        },
-        bottomBar = {
-            Surface(tonalElevation = 3.dp) {
-                NativeChatComposer(
-                    value = prompt,
-                    enabled = !isRunning,
-                    onValueChange = onPromptChanged,
-                    onSendClick = onSendClick,
+            Surface(
+                shadowElevation = 2.dp,
+                tonalElevation = 0.dp,
+                color = Color.White
+            ) {
+                TopAppBar(
+                    title = {
+                        Text(
+                            "Koog Chat",
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF333333)
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onMenuClick) {
+                            Icon(
+                                Icons.Default.Menu,
+                                contentDescription = "菜单",
+                                tint = Color(0xFF333333),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.White,
+                    ),
+                    modifier = Modifier.height(72.dp)
                 )
             }
         },
+        bottomBar = {
+            NativeChatComposer(
+                value = prompt,
+                enabled = !isRunning,
+                onValueChange = onPromptChanged,
+                onSendClick = onSendClick,
+                isRunning = isRunning
+            )
+        },
     ) { innerPadding ->
-        LazyColumn(
-            state = listState,
-            modifier = Modifier.fillMaxSize().padding(innerPadding),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .background(Color(0xFFF5F5F5))
         ) {
-            item {
-                AssistChip(onClick = {}, label = { Text(if (isRunning) "模型回复中" else "已就绪") })
-            }
             if (messages.isEmpty()) {
-                item {
-                    Card {
-                        Column(modifier = Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("开始新对话", style = MaterialTheme.typography.titleMedium)
-                            Text("先从左上角抽屉进入设置，确认模型配置后就可以直接开始聊天。", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
+                EmptyStateView()
+            } else {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(vertical = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(messages, key = { it.id }) { message ->
+                        NativeMessageBubble(message = message)
                     }
                 }
             }
-            items(messages, key = { it.id }) { message -> NativeMessageBubble(message = message) }
+        }
+    }
+}
+
+@Composable
+private fun EmptyStateView() {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                "💬",
+                fontSize = 64.sp
+            )
+            Text(
+                "开始对话",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color(0xFF333333)
+            )
+            Text(
+                "在下方输入消息",
+                fontSize = 14.sp,
+                color = Color(0xFF999999)
+            )
         }
     }
 }
 
 @Composable
 private fun NativeMessageBubble(message: NativeChatMessage) {
-    val isUser = message.role == NativeMessageRole.User
-    val alignment = if (isUser) Alignment.CenterEnd else Alignment.CenterStart
-    val bubbleColor = when (message.role) {
-        NativeMessageRole.User -> MaterialTheme.colorScheme.primaryContainer
-        NativeMessageRole.Assistant -> MaterialTheme.colorScheme.surfaceContainerHighest
-        NativeMessageRole.System -> MaterialTheme.colorScheme.secondaryContainer
+    val roleLabel = when (message.role) {
+        NativeMessageRole.User -> "你"
+        NativeMessageRole.Assistant -> message.label ?: "AI"
+        NativeMessageRole.System -> "系统"
     }
-    val textColor = if (message.role == NativeMessageRole.User) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+    
+    val roleColor = when (message.role) {
+        NativeMessageRole.User -> Color(0xFF007AFF)
+        NativeMessageRole.Assistant -> Color(0xFF34C759)
+        NativeMessageRole.System -> Color(0xFFFF9500)
+    }
 
-    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = alignment) {
-        Card(
-            modifier = Modifier.fillMaxWidth(0.86f),
-            colors = CardDefaults.cardColors(containerColor = bubbleColor),
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .background(roleColor, CircleShape),
+            contentAlignment = Alignment.Center
         ) {
-            Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
-            message.label?.let {
+            Text(
+                text = roleLabel.first().toString(),
+                fontSize = 16.sp,
+                color = Color.White,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = roleLabel,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF333333)
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            SelectionContainer {
                 Text(
-                    text = it,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.Medium,
+                    text = message.text,
+                    fontSize = 15.sp,
+                    color = Color(0xFF333333),
+                    lineHeight = 22.sp
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-            }
-                SelectionContainer {
-                    Text(text = message.text, style = MaterialTheme.typography.bodyLarge, color = textColor)
-                }
             }
         }
     }
 }
 
 @Composable
-private fun NativeChatComposer(value: String, enabled: Boolean, onValueChange: (String) -> Unit, onSendClick: () -> Unit) {
-    Box(modifier = Modifier.fillMaxWidth().navigationBarsPadding().imePadding().padding(horizontal = 16.dp, vertical = 12.dp)) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedTextField(
+private fun NativeChatComposer(
+    value: String,
+    enabled: Boolean,
+    onValueChange: (String) -> Unit,
+    onSendClick: () -> Unit,
+    isRunning: Boolean
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.White)
+            .navigationBarsPadding()
+            .imePadding()
+    ) {
+        if (isRunning) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    "●",
+                    color = Color(0xFF007AFF),
+                    fontSize = 12.sp
+                )
+                Text(
+                    "正在生成回复...",
+                    fontSize = 13.sp,
+                    color = Color(0xFF666666)
+                )
+            }
+        }
+        
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            BasicTextField(
                 value = value,
                 onValueChange = onValueChange,
                 enabled = enabled,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
-                label = { Text("输入消息") },
-                placeholder = { Text("配置项在设置页中管理") },
-                minLines = 2,
-                maxLines = 5,
-            )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = if (enabled) "准备发送" else "正在请求模型…",
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Button(onClick = onSendClick, enabled = enabled && value.isNotBlank()) {
-                    Text("发送")
+                modifier = Modifier
+                    .weight(1f)
+                    .background(Color(0xFFF0F0F0), CircleShape)
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                textStyle = LocalTextStyle.current.copy(
+                    color = Color(0xFF333333),
+                    fontSize = 15.sp
+                ),
+                cursorBrush = SolidColor(Color(0xFF007AFF)),
+                decorationBox = { innerTextField ->
+                    if (value.isEmpty()) {
+                        Text(
+                            "输入消息",
+                            fontSize = 15.sp,
+                            color = Color(0xFF999999)
+                        )
+                    }
+                    innerTextField()
                 }
+            )
+            
+            IconButton(
+                onClick = onSendClick,
+                enabled = enabled && value.isNotBlank(),
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(
+                        if (enabled && value.isNotBlank()) Color(0xFF007AFF)
+                        else Color(0xFFE0E0E0),
+                        CircleShape
+                    )
+            ) {
+                Icon(
+                    Icons.Default.Send,
+                    contentDescription = "发送",
+                    tint = if (enabled && value.isNotBlank()) Color.White
+                    else Color(0xFF999999),
+                    modifier = Modifier.size(20.dp)
+                )
             }
         }
     }
 }
-

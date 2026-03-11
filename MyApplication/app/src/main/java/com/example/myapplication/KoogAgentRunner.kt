@@ -8,23 +8,12 @@ import ai.koog.agents.core.agent.ToolCalls
 import ai.koog.agents.core.annotation.ExperimentalAgentsApi
 import ai.koog.agents.core.agent.functionalStrategy
 import ai.koog.agents.core.agent.singleRunStrategy
-import ai.koog.agents.core.agent.entity.createStorageKey
-import ai.koog.agents.core.dsl.builder.ParallelNodeExecutionResult
-import ai.koog.agents.core.dsl.builder.forwardTo
-import ai.koog.agents.core.dsl.builder.strategy
 import ai.koog.agents.core.dsl.extension.asAssistantMessage
 import ai.koog.agents.core.dsl.extension.containsToolCalls
 import ai.koog.agents.core.dsl.extension.executeMultipleTools
 import ai.koog.agents.core.dsl.extension.extractToolCalls
-import ai.koog.agents.core.dsl.extension.nodeExecuteMultipleTools
-import ai.koog.agents.core.dsl.extension.nodeLLMRequestMultiple
-import ai.koog.agents.core.dsl.extension.nodeLLMSendMultipleToolResults
-import ai.koog.agents.core.dsl.extension.nodeLLMRequestStreamingAndSendResults
-import ai.koog.agents.core.dsl.extension.onMultipleAssistantMessages
-import ai.koog.agents.core.dsl.extension.onMultipleToolCalls
 import ai.koog.agents.core.dsl.extension.requestLLMMultiple
 import ai.koog.agents.core.dsl.extension.sendMultipleToolResults
-import ai.koog.agents.core.environment.ReceivedToolResult
 import ai.koog.agents.core.tools.ToolRegistry
 import ai.koog.agents.features.eventHandler.feature.EventHandler
 import ai.koog.agents.features.eventHandler.feature.EventHandlerConfig
@@ -58,14 +47,17 @@ import ai.koog.prompt.llm.LLMCapability
 import ai.koog.prompt.llm.LLMProvider
 import ai.koog.prompt.llm.LLModel
 import ai.koog.prompt.message.Message
-import ai.koog.prompt.message.RequestMetaInfo
 import ai.koog.prompt.streaming.StreamFrame
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
+
+// 工具装配结果数据类
+internal data class RuntimeToolAssembly(
+    val toolRegistry: ToolRegistry,
+    val availableToolNames: List<String>,
+    val toolSourceSummaries: List<String>,
+    val promptAddendum: String,
+)
 
 object KoogAgentRunner {
     suspend fun runAgent(request: AgentRequest): AgentExecutionResult = runAgentStreaming(request)
@@ -111,25 +103,6 @@ object KoogAgentRunner {
 
         buildExecutor(request, model).use { executor ->
             when (request.runtimePreset) {
-                AgentRuntimePreset.StreamingWithTools -> {
-                    val agent = AIAgent(
-                        promptExecutor = executor,
-                        strategy = streamingWithToolsStrategy(),
-                        llmModel = model,
-                        systemPrompt = buildSystemPrompt(request, runtimeTools.promptAddendum),
-                        temperature = agentTemperature,
-                        toolRegistry = runtimeTools.toolRegistry,
-                        maxIterations = agentMaxIterations,
-                    ) { installGraphStudioFeatures(request, ::recordEvent, onTextDelta, runtimeCollector) }
-
-                    val responses = agent.run(request.userPrompt)
-                    val answer = responses
-                        .filterIsInstance<Message.Assistant>()
-                        .joinToString(separator = "\n") { it.content }
-                        .ifBlank { responses.joinToString(separator = "\n") { it.content } }
-                    AgentExecutionResult(answer = answer, events = events, runtimeSnapshot = runtimeCollector.build(answer))
-                }
-
                 AgentRuntimePreset.BasicSingleRun -> {
                     val agent = AIAgent(
                         promptExecutor = executor,
@@ -155,51 +128,6 @@ object KoogAgentRunner {
                     val agent = AIAgent(
                         promptExecutor = executor,
                         strategy = singleRunStrategy(toolCallsMode),
-                        llmModel = model,
-                        systemPrompt = buildSystemPrompt(request, runtimeTools.promptAddendum),
-                        temperature = agentTemperature,
-                        toolRegistry = runtimeTools.toolRegistry,
-                        maxIterations = agentMaxIterations,
-                    ) { installGraphStudioFeatures(request, ::recordEvent, onTextDelta, runtimeCollector) }
-
-                    val answer = agent.run(request.userPrompt)
-                    AgentExecutionResult(answer = answer, events = events, runtimeSnapshot = runtimeCollector.build(answer))
-                }
-
-                AgentRuntimePreset.GraphSubgraphTools -> {
-                    val agent = AIAgent(
-                        promptExecutor = executor,
-                        strategy = subgraphToolsStrategy(parallelTools = false),
-                        llmModel = model,
-                        systemPrompt = buildSystemPrompt(request, runtimeTools.promptAddendum),
-                        temperature = agentTemperature,
-                        toolRegistry = runtimeTools.toolRegistry,
-                        maxIterations = agentMaxIterations,
-                    ) { installGraphStudioFeatures(request, ::recordEvent, onTextDelta, runtimeCollector) }
-
-                    val answer = agent.run(request.userPrompt)
-                    AgentExecutionResult(answer = answer, events = events, runtimeSnapshot = runtimeCollector.build(answer))
-                }
-
-                AgentRuntimePreset.GraphParallelSignalMerge -> {
-                    val agent = AIAgent(
-                        promptExecutor = executor,
-                        strategy = parallelSignalMergeStrategy(),
-                        llmModel = model,
-                        systemPrompt = buildSystemPrompt(request, runtimeTools.promptAddendum),
-                        temperature = agentTemperature,
-                        toolRegistry = runtimeTools.toolRegistry,
-                        maxIterations = agentMaxIterations,
-                    ) { installGraphStudioFeatures(request, ::recordEvent, onTextDelta, runtimeCollector) }
-
-                    val answer = agent.run(request.userPrompt)
-                    AgentExecutionResult(answer = answer, events = events, runtimeSnapshot = runtimeCollector.build(answer))
-                }
-
-                AgentRuntimePreset.GraphConditionalRouting -> {
-                    val agent = AIAgent(
-                        promptExecutor = executor,
-                        strategy = conditionalRoutingStrategy(),
                         llmModel = model,
                         systemPrompt = buildSystemPrompt(request, runtimeTools.promptAddendum),
                         temperature = agentTemperature,
@@ -244,14 +172,9 @@ object KoogAgentRunner {
         onTextDelta: (String) -> Unit,
         runtimeCollector: RuntimeSnapshotCollector,
     ) {
-        install(
-            EventHandler,
-            commonEventHandlers(
-                recordEvent = recordEvent,
-                onTextDelta = onTextDelta,
-                runtimeCollector = runtimeCollector,
-            ),
-        )
+        install(EventHandler) {
+            commonEventHandlers(recordEvent, onTextDelta, runtimeCollector)()
+        }
     }
 
     @OptIn(ExperimentalAgentsApi::class)
@@ -261,14 +184,9 @@ object KoogAgentRunner {
         onTextDelta: (String) -> Unit,
         runtimeCollector: RuntimeSnapshotCollector,
     ) {
-        install(
-            EventHandler,
-            commonEventHandlers(
-                recordEvent = recordEvent,
-                onTextDelta = onTextDelta,
-                runtimeCollector = runtimeCollector,
-            ),
-        )
+        install(EventHandler) {
+            commonEventHandlers(recordEvent, onTextDelta, runtimeCollector)()
+        }
     }
 
     private fun commonEventHandlers(
@@ -351,207 +269,24 @@ object KoogAgentRunner {
             }
     }
 
-    private fun streamingWithToolsStrategy() = strategy("streaming_loop") {
-        val executeMultipleTools by nodeExecuteMultipleTools(parallelTools = true)
-        val nodeStreaming by nodeLLMRequestStreamingAndSendResults()
-
-        val mapStringToRequests by node<String, List<Message.Request>> { input ->
-            listOf(Message.User(content = input, metaInfo = RequestMetaInfo.Empty))
+    // 简化的工具装配函数 - 只使用基本的demo工具
+    private suspend fun assembleRuntimeToolAssembly(request: AgentRequest): RuntimeToolAssembly {
+        val localTools = demoToolsCatalog()
+        val availableToolNames = localTools.map { it.name }
+        val sourceSummaries = listOf("demo-tools=${localTools.size}")
+        
+        val promptNotes = if (availableToolNames.isNotEmpty()) {
+            "当前可用工具：${availableToolNames.joinToString()}。"
+        } else {
+            ""
         }
-
-        val applyRequestToSession by node<List<Message.Request>, List<Message.Request>> { input ->
-            llm.writeSession {
-                appendPrompt {
-                    input.filterIsInstance<Message.User>().forEach { user(it.content) }
-                    tool {
-                        input.filterIsInstance<Message.Tool.Result>().forEach { result(it) }
-                    }
-                }
-                input
-            }
-        }
-
-        val mapToolCallsToRequests by node<List<ReceivedToolResult>, List<Message.Request>> { input ->
-            input.map { it.toMessage() }
-        }
-
-        edge(nodeStart forwardTo mapStringToRequests)
-        edge(mapStringToRequests forwardTo applyRequestToSession)
-        edge(applyRequestToSession forwardTo nodeStreaming)
-        edge(nodeStreaming forwardTo executeMultipleTools onMultipleToolCalls { true })
-        edge(executeMultipleTools forwardTo mapToolCallsToRequests)
-        edge(mapToolCallsToRequests forwardTo applyRequestToSession)
-        edge(
-            nodeStreaming forwardTo nodeFinish onCondition {
-                it.filterIsInstance<Message.Tool.Call>().isEmpty()
-            }
+        
+        return RuntimeToolAssembly(
+            toolRegistry = ToolRegistry { tools(localTools) },
+            availableToolNames = availableToolNames,
+            toolSourceSummaries = sourceSummaries,
+            promptAddendum = promptNotes,
         )
-    }
-
-    private fun subgraphToolsStrategy(parallelTools: Boolean) = strategy(
-        name = if (parallelTools) "subgraph_tools_parallel" else "subgraph_tools_sequential",
-    ) {
-        val toolLoop by subgraph<String, String>(
-            name = if (parallelTools) "tool_loop_parallel" else "tool_loop_sequential",
-            tools = demoToolsCatalog(),
-        ) {
-            val nodeCallLLM by nodeLLMRequestMultiple()
-            val nodeExecuteTool by nodeExecuteMultipleTools(parallelTools = parallelTools)
-            val nodeSendToolResult by nodeLLMSendMultipleToolResults()
-
-            edge(nodeStart forwardTo nodeCallLLM)
-            edge(nodeCallLLM forwardTo nodeExecuteTool onMultipleToolCalls { true })
-            edge(
-                nodeCallLLM forwardTo nodeFinish
-                    onMultipleAssistantMessages { true }
-                    transformed { messages -> messages.joinToString("\n") { it.content } }
-            )
-            edge(nodeExecuteTool forwardTo nodeSendToolResult)
-            edge(nodeSendToolResult forwardTo nodeExecuteTool onMultipleToolCalls { true })
-            edge(
-                nodeSendToolResult forwardTo nodeFinish
-                    onMultipleAssistantMessages { true }
-                    transformed { messages -> messages.joinToString("\n") { it.content } }
-            )
-        }
-
-        edge(nodeStart forwardTo toolLoop)
-        edge(toolLoop forwardTo nodeFinish)
-    }
-
-    private fun parallelSignalMergeStrategy() = strategy("parallel_signal_merge") {
-        val countSignal by node<String, String>("count_signal") { input ->
-            val words = input.trim().split(Regex("\\s+")).filter { it.isNotBlank() }.size
-            val digits = input.count { it.isDigit() }
-            "长度=${input.length}，词数=$words，数字字符=$digits。"
-        }
-
-        val intentSignal by node<String, String>("intent_signal") { input ->
-            val normalized = input.lowercase()
-            val intent = when {
-                listOf("time", "时间", "now", "几点").any(normalized::contains) -> "时间查询"
-                listOf("+", "-", "*", "/", "乘", "加", "减", "算").any(normalized::contains) -> "计算请求"
-                input.contains("?") || input.contains("？") -> "问答请求"
-                else -> "开放式对话"
-            }
-            "意图判断=$intent。"
-        }
-
-        val toolHintSignal by node<String, String>("tool_hint_signal") { input ->
-            val normalized = input.lowercase()
-            val shouldPreferTool = listOf("time", "时间", "now", "几点", "+", "-", "*", "/", "乘", "加", "减", "算").any(normalized::contains)
-            if (shouldPreferTool) {
-                "建议：若需要精确时间或计算，请切换到支持工具的运行预设。"
-            } else {
-                "建议：当前请求更适合直接文本回答，无需工具。"
-            }
-        }
-
-        val mergeSignals by parallel(
-            countSignal,
-            intentSignal,
-            toolHintSignal,
-            name = "parallel_signal_nodes",
-        ) {
-            val folded = fold("并行分析结果：") { acc, result -> "$acc\n- $result" }
-            ParallelNodeExecutionResult(folded.output, this)
-        }
-
-        val finalAnswer by node<String, String>("parallel_answer") { analysis ->
-            llm.writeSession {
-                appendPrompt {
-                    system("你会基于并行分析信号回答用户。要简洁、明确，不要虚构工具结果。")
-                    user("用户原始请求：$agentInput\n\n$analysis")
-                }
-                requestLLMWithoutTools().content
-            }
-        }
-
-        edge(nodeStart forwardTo mergeSignals)
-        edge(mergeSignals forwardTo finalAnswer)
-        edge(finalAnswer forwardTo nodeFinish)
-    }
-
-    private fun conditionalRoutingStrategy() = strategy("conditional_routing_graph") {
-        val toolLoop by subgraph<String, String>(
-            name = "routed_tool_loop",
-            tools = demoToolsCatalog(),
-        ) {
-            val nodeCallLLM by nodeLLMRequestMultiple()
-            val nodeExecuteTool by nodeExecuteMultipleTools(parallelTools = false)
-            val nodeSendToolResult by nodeLLMSendMultipleToolResults()
-
-            edge(nodeStart forwardTo nodeCallLLM)
-            edge(nodeCallLLM forwardTo nodeExecuteTool onMultipleToolCalls { true })
-            edge(
-                nodeCallLLM forwardTo nodeFinish
-                    onMultipleAssistantMessages { true }
-                    transformed { messages -> messages.joinToString("\n") { it.content } }
-            )
-            edge(nodeExecuteTool forwardTo nodeSendToolResult)
-            edge(nodeSendToolResult forwardTo nodeExecuteTool onMultipleToolCalls { true })
-            edge(
-                nodeSendToolResult forwardTo nodeFinish
-                    onMultipleAssistantMessages { true }
-                    transformed { messages -> messages.joinToString("\n") { it.content } }
-            )
-        }
-
-        val classifyRoute by node<String, RoutingDecision>("classify_route") { input ->
-            val normalized = input.lowercase()
-            val route = when {
-                input.length < 4 -> RouteTarget.Clarify
-                listOf("time", "时间", "now", "几点", "+", "-", "*", "/", "乘", "加", "减", "算").any(normalized::contains) -> RouteTarget.ToolLoop
-                listOf("why", "what", "how", "为什么", "如何", "解释", "介绍", "总结", "compare", "对比").any(normalized::contains) -> RouteTarget.DirectAnswer
-                input.contains("?") || input.contains("？") -> RouteTarget.DirectAnswer
-                else -> RouteTarget.Clarify
-            }
-            val reason = when (route) {
-                RouteTarget.ToolLoop -> "检测到时间/计算意图，优先进入 tool loop。"
-                RouteTarget.DirectAnswer -> "检测到问答/解释意图，直接进入文本回答。"
-                RouteTarget.Clarify -> "输入过短或意图不充分，先进入澄清路径。"
-            }
-            storage.set(routeKey, route.name)
-            storage.set(routeReasonKey, reason)
-            storage.set(routeInputKey, compactText(input, 120))
-            RoutingDecision(target = route, originalInput = input, reason = reason)
-        }
-
-        val directAnswer by node<String, String>("direct_answer") { input ->
-            val routeReason = storage.get(routeReasonKey) ?: "未记录路由原因。"
-            llm.writeSession {
-                appendPrompt {
-                    system("你负责 direct-answer 分支。请简洁回答，不要调用工具，也不要虚构外部结果。")
-                    user("用户请求：$input\n\n路由原因：$routeReason")
-                }
-                requestLLMWithoutTools().content
-            }
-        }
-
-        val clarifyRequest by node<String, String>("clarify_request") { input ->
-            val routeReason = storage.get(routeReasonKey) ?: "未记录路由原因。"
-            "当前请求已进入澄清路径：$routeReason\n\n请补充你想让我做的是：时间查询、数学计算，还是一般问答。原始输入：$input"
-        }
-
-        edge(nodeStart forwardTo classifyRoute)
-        edge(
-            classifyRoute forwardTo toolLoop
-                onCondition { it.target == RouteTarget.ToolLoop }
-                transformed { it.originalInput }
-        )
-        edge(
-            classifyRoute forwardTo directAnswer
-                onCondition { it.target == RouteTarget.DirectAnswer }
-                transformed { it.originalInput }
-        )
-        edge(
-            classifyRoute forwardTo clarifyRequest
-                onCondition { it.target == RouteTarget.Clarify }
-                transformed { it.originalInput }
-        )
-        edge(toolLoop forwardTo nodeFinish)
-        edge(directAnswer forwardTo nodeFinish)
-        edge(clarifyRequest forwardTo nodeFinish)
     }
 
     private fun buildSystemPrompt(request: AgentRequest, runtimeToolPrompt: String): String =
@@ -881,20 +616,4 @@ object KoogAgentRunner {
             finalResultPreview = compactText(answer),
         )
     }
-
-    private enum class RouteTarget {
-        ToolLoop,
-        DirectAnswer,
-        Clarify,
-    }
-
-    private data class RoutingDecision(
-        val target: RouteTarget,
-        val originalInput: String,
-        val reason: String,
-    )
-
-    private val routeKey = createStorageKey<String>("routing.target")
-    private val routeReasonKey = createStorageKey<String>("routing.reason")
-    private val routeInputKey = createStorageKey<String>("routing.input.preview")
 }

@@ -1,29 +1,41 @@
 package com.example.myapplication
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,23 +45,86 @@ internal fun NativeSettingsHomeScreen(
     onBackClick: () -> Unit,
     onOpenProviderSettings: () -> Unit,
     onOpenRuntimeSettings: () -> Unit,
-    onOpenLocalToolsSettings: () -> Unit,
 ) {
-    Scaffold(topBar = {
-        TopAppBar(
-            title = { Text("设置") },
-            navigationIcon = { IconButton(onClick = onBackClick) { Text("←") } },
-        )
-    }) { innerPadding ->
-        Column(modifier = Modifier.fillMaxSize().padding(innerPadding).verticalScroll(rememberScrollState()).padding(vertical = 8.dp)) {
-            NativeSettingsEntryItem("模型与供应商", "${state.provider.displayName} · ${state.modelId.ifBlank { "未设置模型" }}", onOpenProviderSettings)
-            NativeSettingsEntryItem("运行参数", "${state.runtimePreset.title} · temperature ${state.temperature} · iterations ${state.maxIterations}", onOpenRuntimeSettings)
-            NativeSettingsEntryItem("本地工具", "${if (state.codeToolsEnabled) "已启用" else "已关闭"} · ${state.codeToolsWorkspaceRoot.ifBlank { "未设置工作区" }}", onOpenLocalToolsSettings)
+    Scaffold(
+        topBar = {
+            Surface(
+                shadowElevation = 2.dp,
+                tonalElevation = 0.dp,
+                color = Color.White
+            ) {
+                TopAppBar(
+                    title = {
+                        Text(
+                            "设置",
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF333333)
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onBackClick) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "返回",
+                                tint = Color(0xFF333333),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.White,
+                    ),
+                    modifier = Modifier.height(64.dp)
+                )
+            }
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .background(Color(0xFFF5F5F5))
+                .verticalScroll(rememberScrollState())
+        ) {
             if (errors.hasAny()) {
-                NativeSectionCard(title = "当前需要处理", subtitle = "这些问题会影响聊天请求或工具执行") {
-                    Text(nativeSettingsSummary(errors), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFFFFEBEE))
+                        .padding(16.dp)
+                ) {
+                    Text(
+                        "⚠️ ${nativeSettingsSummary(errors)}",
+                        fontSize = 14.sp,
+                        color = Color(0xFFC62828)
+                    )
                 }
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            SettingsItem(
+                title = "模型供应商",
+                subtitle = "${state.provider.displayName} · ${state.modelId.ifBlank { "未设置" }}",
+                onClick = onOpenProviderSettings
+            )
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            SettingsItem(
+                title = "运行模式",
+                subtitle = state.runtimePreset.title,
+                onClick = onOpenRuntimeSettings
+            )
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            SettingsItem(
+                title = "Temperature",
+                subtitle = state.temperature,
+                onClick = onOpenRuntimeSettings
+            )
         }
     }
 }
@@ -66,24 +141,112 @@ internal fun NativeProviderSettingsScreen(
     onBaseUrlChanged: (String) -> Unit,
     onExtraConfigChanged: (String) -> Unit,
 ) {
-    SettingsDetailScaffold(title = "模型与供应商", onBackClick = onBackClick) {
-        NativeSectionCard(title = "供应商", subtitle = "选择当前聊天使用的模型供应商") {
-            KoogProvider.entries.forEach { item ->
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    RadioButton(selected = item == state.provider, onClick = { onProviderSelected(item) }, enabled = item.isSupportedOnAndroid)
-                    Column {
-                        Text(item.displayName, style = MaterialTheme.typography.titleSmall)
-                        Text(if (item.isSupportedOnAndroid) item.providerNote else "${item.providerNote}（当前 Android 端不可用）", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
+    Scaffold(
+        topBar = {
+            Surface(
+                shadowElevation = 2.dp,
+                tonalElevation = 0.dp,
+                color = Color.White
+            ) {
+                TopAppBar(
+                    title = {
+                        Text(
+                            "模型供应商",
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF333333)
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onBackClick) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "返回",
+                                tint = Color(0xFF333333),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.White,
+                    ),
+                    modifier = Modifier.height(64.dp)
+                )
+            }
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .background(Color(0xFFF5F5F5))
+                .verticalScroll(rememberScrollState())
+        ) {
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.White)
+                    .padding(vertical = 8.dp)
+            ) {
+                KoogProvider.entries.forEach { provider ->
+                    ProviderItem(
+                        provider = provider,
+                        selected = provider == state.provider,
+                        onSelect = { onProviderSelected(provider) }
+                    )
                 }
             }
-            errors.provider?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
-        }
-        NativeSectionCard(title = "连接配置", subtitle = "只保留与当前模型连接相关的配置") {
-            NativeTextField("模型 ID", state.modelId, onModelIdChanged, errors.modelId, state.provider.defaultModelId)
-            if (state.provider.requiresApiKey) NativeTextField("API Key", state.apiKey, onApiKeyChanged, errors.apiKey, "输入供应商密钥", secure = true)
-            if (state.provider != KoogProvider.BEDROCK) NativeTextField(state.provider.baseUrlLabel, state.baseUrl, onBaseUrlChanged, errors.baseUrl, state.provider.defaultBaseUrl.ifBlank { "https://example.com" }, keyboardType = KeyboardType.Uri)
-            state.provider.extraFieldLabel?.let { NativeTextField(it, state.extraConfig, onExtraConfigChanged, errors.extraConfig, state.provider.extraFieldDefault) }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Column(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                NativeTextField(
+                    "模型 ID",
+                    state.modelId,
+                    onModelIdChanged,
+                    errors.modelId,
+                    state.provider.defaultModelId
+                )
+                
+                if (state.provider.requiresApiKey) {
+                    NativeTextField(
+                        "API Key",
+                        state.apiKey,
+                        onApiKeyChanged,
+                        errors.apiKey,
+                        "输入 API 密钥",
+                        secure = true
+                    )
+                }
+                
+                if (state.provider != KoogProvider.BEDROCK) {
+                    NativeTextField(
+                        state.provider.baseUrlLabel,
+                        state.baseUrl,
+                        onBaseUrlChanged,
+                        errors.baseUrl,
+                        state.provider.defaultBaseUrl.ifBlank { "https://api.example.com" },
+                        keyboardType = KeyboardType.Uri
+                    )
+                }
+                
+                state.provider.extraFieldLabel?.let {
+                    NativeTextField(
+                        it,
+                        state.extraConfig,
+                        onExtraConfigChanged,
+                        errors.extraConfig,
+                        state.provider.extraFieldDefault
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
@@ -99,77 +262,220 @@ internal fun NativeRuntimeSettingsScreen(
     onTemperatureChanged: (String) -> Unit,
     onMaxIterationsChanged: (String) -> Unit,
 ) {
-    SettingsDetailScaffold(title = "运行参数", onBackClick = onBackClick) {
-        NativeSectionCard(title = "运行模式", subtitle = "选择当前 Android App 运行 agent 的方式") {
-            AgentRuntimePreset.entries.forEach { preset ->
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    RadioButton(selected = preset == state.runtimePreset, onClick = { onRuntimePresetSelected(preset) })
-                    Column {
-                        Text(preset.title, style = MaterialTheme.typography.titleSmall)
-                        Text("${preset.family} · ${preset.description}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
+    Scaffold(
+        topBar = {
+            Surface(
+                shadowElevation = 2.dp,
+                tonalElevation = 0.dp,
+                color = Color.White
+            ) {
+                TopAppBar(
+                    title = {
+                        Text(
+                            "运行参数",
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF333333)
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onBackClick) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "返回",
+                                tint = Color(0xFF333333),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.White,
+                    ),
+                    modifier = Modifier.height(64.dp)
+                )
             }
         }
-        NativeSectionCard(title = "请求参数", subtitle = "这些参数会直接影响模型输出") {
-            NativeTextField("System prompt", state.systemPrompt, onSystemPromptChanged, placeholder = "可选", singleLine = false)
-            NativeTextField("Temperature", state.temperature, onTemperatureChanged, errors.temperature, "0.2", keyboardType = KeyboardType.Decimal)
-            NativeTextField("Max iterations", state.maxIterations, onMaxIterationsChanged, errors.maxIterations, "50", keyboardType = KeyboardType.Number)
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-internal fun NativeLocalToolsSettingsScreen(
-    state: NativeSettingsState,
-    errors: NativeFormErrors,
-    onBackClick: () -> Unit,
-    onCodeToolsEnabledChanged: (Boolean) -> Unit,
-    onCodeToolsWorkspaceRootChanged: (String) -> Unit,
-    onCodeToolsAllowedPathPrefixesChanged: (String) -> Unit,
-) {
-    SettingsDetailScaffold(title = "本地工具", onBackClick = onBackClick) {
-        NativeSectionCard(title = "工具开关", subtitle = "控制 Android 本地文件工具的可用状态") {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Column {
-                    Text("启用本地工具", style = MaterialTheme.typography.titleSmall)
-                    Text("关闭后工具页仍可进入，但不会执行文件操作。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                Switch(checked = state.codeToolsEnabled, onCheckedChange = onCodeToolsEnabledChanged)
-            }
-        }
-        NativeSectionCard(title = "访问范围", subtitle = "限制工具可访问的本地目录") {
-            NativeTextField("Workspace root", state.codeToolsWorkspaceRoot, onCodeToolsWorkspaceRootChanged, errors.codeToolsWorkspaceRoot, "/data/user/0/.../files")
-            NativeTextField("Allowed path prefixes", state.codeToolsAllowedPathPrefixes, onCodeToolsAllowedPathPrefixesChanged, placeholder = "多个路径用分号分隔", singleLine = false)
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun SettingsDetailScaffold(title: String, onBackClick: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
-    Scaffold(topBar = {
-        TopAppBar(
-            title = { Text(title) },
-            navigationIcon = { IconButton(onClick = onBackClick) { Text("←") } },
-        )
-    }) { innerPadding ->
+    ) { innerPadding ->
         Column(
-            modifier = Modifier.fillMaxSize().padding(innerPadding).verticalScroll(rememberScrollState()).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            content = content,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .background(Color(0xFFF5F5F5))
+                .verticalScroll(rememberScrollState())
+        ) {
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.White)
+                    .padding(vertical = 8.dp)
+            ) {
+                AgentRuntimePreset.entries.forEach { preset ->
+                    PresetItem(
+                        preset = preset,
+                        selected = preset == state.runtimePreset,
+                        onSelect = { onRuntimePresetSelected(preset) }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Column(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                NativeTextField(
+                    "System Prompt",
+                    state.systemPrompt,
+                    onSystemPromptChanged,
+                    placeholder = "可选的系统提示词",
+                    singleLine = false
+                )
+                
+                NativeTextField(
+                    "Temperature",
+                    state.temperature,
+                    onTemperatureChanged,
+                    errors.temperature,
+                    "0.2",
+                    keyboardType = KeyboardType.Decimal
+                )
+                
+                NativeTextField(
+                    "Max Iterations",
+                    state.maxIterations,
+                    onMaxIterationsChanged,
+                    errors.maxIterations,
+                    "50",
+                    keyboardType = KeyboardType.Number
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+@Composable
+private fun SettingsItem(
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .background(Color.White)
+            .padding(horizontal = 16.dp, vertical = 16.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                title,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color(0xFF333333)
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                subtitle,
+                fontSize = 13.sp,
+                color = Color(0xFF999999)
+            )
+        }
+        Icon(
+            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = Color(0xFFCCCCCC),
+            modifier = Modifier.size(20.dp)
         )
     }
 }
 
 @Composable
-private fun NativeSettingsEntryItem(title: String, summary: String, onClick: () -> Unit) {
-    ListItem(
-        headlineContent = { Text(title) },
-        supportingContent = { Text(summary) },
-        trailingContent = { Text("进入") },
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-    )
-    HorizontalDivider()
+private fun ProviderItem(
+    provider: KoogProvider,
+    selected: Boolean,
+    onSelect: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onSelect, enabled = provider.isSupportedOnAndroid)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        RadioButton(
+            selected = selected,
+            onClick = onSelect,
+            enabled = provider.isSupportedOnAndroid,
+            colors = RadioButtonDefaults.colors(
+                selectedColor = Color(0xFF007AFF),
+                unselectedColor = Color(0xFFCCCCCC)
+            )
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                provider.displayName,
+                fontSize = 15.sp,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                color = Color(0xFF333333)
+            )
+            Text(
+                if (provider.isSupportedOnAndroid) provider.providerNote else "当前不可用",
+                fontSize = 13.sp,
+                color = Color(0xFF999999)
+            )
+        }
+    }
+}
+
+@Composable
+private fun PresetItem(
+    preset: AgentRuntimePreset,
+    selected: Boolean,
+    onSelect: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onSelect)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        RadioButton(
+            selected = selected,
+            onClick = onSelect,
+            colors = RadioButtonDefaults.colors(
+                selectedColor = Color(0xFF007AFF),
+                unselectedColor = Color(0xFFCCCCCC)
+            )
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    preset.title,
+                    fontSize = 15.sp,
+                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                    color = Color(0xFF333333)
+                )
+                Text(
+                    preset.family,
+                    fontSize = 12.sp,
+                    color = Color(0xFF007AFF)
+                )
+            }
+            Text(
+                preset.description,
+                fontSize = 13.sp,
+                color = Color(0xFF999999)
+            )
+        }
+    }
 }

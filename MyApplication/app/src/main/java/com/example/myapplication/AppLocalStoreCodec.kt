@@ -11,9 +11,6 @@ data class StoredSettings(
     val baseUrl: String,
     val extraConfig: String,
     val promptDraft: String,
-    val codeToolsEnabled: Boolean = true,
-    val codeToolsWorkspaceRoot: String = "",
-    val codeToolsAllowedPathPrefixes: String = "",
     val systemPrompt: String = "",
     val temperature: String = "0.2",
     val maxIterations: String = "50",
@@ -39,9 +36,6 @@ object AppLocalStoreCodec {
         settings.baseUrl,
         settings.extraConfig,
         settings.promptDraft,
-        settings.codeToolsEnabled.toString(),
-        settings.codeToolsWorkspaceRoot,
-        settings.codeToolsAllowedPathPrefixes,
         settings.systemPrompt,
         settings.temperature,
         settings.maxIterations,
@@ -50,7 +44,7 @@ object AppLocalStoreCodec {
     fun decodeSettings(raw: String?): StoredSettings? {
         if (raw.isNullOrBlank()) return null
         val parts = raw.split("\t")
-        if (parts.size != 12) return null
+        if (parts.size != 9) return null
 
         return StoredSettings(
             providerName = unescape(parts[0]),
@@ -59,12 +53,9 @@ object AppLocalStoreCodec {
             baseUrl = unescape(parts[3]),
             extraConfig = unescape(parts[4]),
             promptDraft = unescape(parts[5]),
-            codeToolsEnabled = parts.getOrNull(6)?.let(::unescape)?.toBooleanStrictOrNull() ?: true,
-            codeToolsWorkspaceRoot = parts.getOrNull(7)?.let(::unescape) ?: "",
-            codeToolsAllowedPathPrefixes = parts.getOrNull(8)?.let(::unescape) ?: "",
-            systemPrompt = parts.getOrNull(9)?.let(::unescape).orEmpty(),
-            temperature = parts.getOrNull(10)?.let(::unescape) ?: "0.2",
-            maxIterations = parts.getOrNull(11)?.let(::unescape) ?: "50",
+            systemPrompt = parts.getOrNull(6)?.let(::unescape).orEmpty(),
+            temperature = parts.getOrNull(7)?.let(::unescape) ?: "0.2",
+            maxIterations = parts.getOrNull(8)?.let(::unescape) ?: "50",
         )
     }
 

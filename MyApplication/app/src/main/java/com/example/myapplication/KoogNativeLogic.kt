@@ -11,9 +11,6 @@ internal data class NativeSettingsState(
     val systemPrompt: String,
     val temperature: String,
     val maxIterations: String,
-    val codeToolsEnabled: Boolean,
-    val codeToolsWorkspaceRoot: String,
-    val codeToolsAllowedPathPrefixes: String,
 )
 
 internal fun validateNativeSettings(state: NativeSettingsState): NativeFormErrors = NativeFormErrors(
@@ -34,7 +31,6 @@ internal fun validateNativeSettings(state: NativeSettingsState): NativeFormError
         state.maxIterations.toInt() <= 0 -> "max iterations 必须大于 0"
         else -> null
     },
-    codeToolsWorkspaceRoot = if (state.codeToolsEnabled && state.codeToolsWorkspaceRoot.isBlank()) "启用本地工具时必须填写 Workspace root" else null,
 )
 
 internal fun nativeSettingsSummary(errors: NativeFormErrors): String = buildList {
@@ -45,7 +41,6 @@ internal fun nativeSettingsSummary(errors: NativeFormErrors): String = buildList
     errors.extraConfig?.let(::add)
     errors.temperature?.let(::add)
     errors.maxIterations?.let(::add)
-    errors.codeToolsWorkspaceRoot?.let(::add)
 }.joinToString("；")
 
 internal fun NativeSettingsState.toStoredSettings(): StoredSettings = StoredSettings(
@@ -55,9 +50,6 @@ internal fun NativeSettingsState.toStoredSettings(): StoredSettings = StoredSett
     baseUrl = baseUrl,
     extraConfig = extraConfig,
     promptDraft = promptDraft,
-    codeToolsEnabled = codeToolsEnabled,
-    codeToolsWorkspaceRoot = codeToolsWorkspaceRoot,
-    codeToolsAllowedPathPrefixes = codeToolsAllowedPathPrefixes,
     systemPrompt = systemPrompt,
     temperature = temperature,
     maxIterations = maxIterations,
@@ -73,11 +65,6 @@ internal fun NativeSettingsState.toAgentRequest(userPrompt: String): AgentReques
     systemPrompt = systemPrompt.trim(),
     temperature = temperature.trim().toDoubleOrNull(),
     maxIterations = maxIterations.trim().toIntOrNull(),
-    featureConfig = AgentFeatureConfig(
-        codeToolsEnabled = codeToolsEnabled,
-        codeToolsWorkspaceRoot = codeToolsWorkspaceRoot.trim(),
-        codeToolsAllowedPathPrefixes = codeToolsAllowedPathPrefixes.trim(),
-    ),
     userPrompt = userPrompt.trim(),
 )
 

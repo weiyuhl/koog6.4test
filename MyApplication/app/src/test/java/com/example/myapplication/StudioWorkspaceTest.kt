@@ -19,16 +19,12 @@ class NativeSettingsLogicTest {
                 systemPrompt = "",
                 temperature = "0.2",
                 maxIterations = "50",
-                codeToolsEnabled = true,
-                codeToolsWorkspaceRoot = "",
-                codeToolsAllowedPathPrefixes = "",
             )
         )
 
         assertTrue(errors.hasAny())
         assertTrue(nativeSettingsSummary(errors).contains("请输入模型 ID"))
         assertTrue(nativeSettingsSummary(errors).contains("请先输入 API Key"))
-        assertTrue(nativeSettingsSummary(errors).contains("Workspace root"))
     }
 
     @Test
@@ -45,9 +41,6 @@ class NativeSettingsLogicTest {
                 systemPrompt = "system",
                 temperature = "0.4",
                 maxIterations = "20",
-                codeToolsEnabled = true,
-                codeToolsWorkspaceRoot = "d:/koog",
-                codeToolsAllowedPathPrefixes = "d:/koog",
             )
         )
 

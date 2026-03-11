@@ -2,11 +2,9 @@ package com.example.myapplication
 
 internal enum class NativeRoute(val value: String) {
     Chat("chat"),
-    Tools("tools"),
     SettingsHome("settings/home"),
     SettingsModel("settings/model"),
     SettingsRuntime("settings/runtime"),
-    SettingsLocalTools("settings/local-tools"),
 }
 
 internal enum class NativeMessageRole {
@@ -22,12 +20,6 @@ internal data class NativeChatMessage(
     val label: String? = null,
 )
 
-internal data class NativeToolHistoryEntry(
-    val title: String,
-    val detail: String,
-    val isError: Boolean = false,
-)
-
 internal data class NativeFormErrors(
     val provider: String? = null,
     val modelId: String? = null,
@@ -36,7 +28,6 @@ internal data class NativeFormErrors(
     val extraConfig: String? = null,
     val temperature: String? = null,
     val maxIterations: String? = null,
-    val codeToolsWorkspaceRoot: String? = null,
 ) {
     fun hasAny(): Boolean = listOf(
         provider,
@@ -46,7 +37,6 @@ internal data class NativeFormErrors(
         extraConfig,
         temperature,
         maxIterations,
-        codeToolsWorkspaceRoot,
     ).any { it != null }
 }
 

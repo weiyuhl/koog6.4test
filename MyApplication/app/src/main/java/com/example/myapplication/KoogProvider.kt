@@ -10,14 +10,12 @@ data class AgentRequest(
     val systemPrompt: String,
     val temperature: Double?,
     val maxIterations: Int?,
-    val featureConfig: AgentFeatureConfig,
     val userPrompt: String,
 )
 
 data class AgentFeatureConfig(
-    val codeToolsEnabled: Boolean,
-    val codeToolsWorkspaceRoot: String,
-    val codeToolsAllowedPathPrefixes: String,
+    // 保留用于未来扩展
+    val placeholder: Boolean = false,
 )
 
 data class AgentExecutionResult(
