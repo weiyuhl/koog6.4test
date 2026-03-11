@@ -193,19 +193,4 @@ internal class SettingsViewModel(
     }
     
     fun toUiModel(): SettingsUiModel = _uiState.value.toUiModel()
-    
-    fun toState(): State = _uiState.value.let {
-        State(
-            provider = it.provider,
-            apiKey = it.apiKey,
-            modelId = it.modelId,
-            baseUrl = it.baseUrl,
-            extraConfig = it.extraConfig,
-            promptDraft = "",
-            runtimePreset = it.runtimePreset,
-            systemPrompt = it.systemPrompt,
-            temperature = it.temperature,
-            maxIterations = it.maxIterations
-        )
-    }
 }

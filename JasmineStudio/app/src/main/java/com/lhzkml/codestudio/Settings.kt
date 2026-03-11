@@ -24,14 +24,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lhzkml.codestudio.components.Bar
 import com.lhzkml.codestudio.components.DropdownField
-import com.lhzkml.codestudio.components.Icon
-import com.lhzkml.codestudio.components.IconButton
 import com.lhzkml.codestudio.components.Text
+import com.lhzkml.codestudio.ui.model.SettingsHomeUiModel
+import com.lhzkml.codestudio.ui.model.ProviderSettingsUiModel
+import com.lhzkml.codestudio.ui.model.RuntimeSettingsUiModel
 
 @Composable
 internal fun SettingsHomeScreen(
-    state: State,
-    errors: FormErrors,
+    uiModel: SettingsHomeUiModel,
     onBackClick: () -> Unit,
     onOpenProvider: () -> Unit,
     onOpenRuntime: () -> Unit,
@@ -50,7 +50,7 @@ internal fun SettingsHomeScreen(
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
         ) {
-            if (errors.hasAny()) {
+            if (uiModel.errors.hasAny()) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -58,7 +58,7 @@ internal fun SettingsHomeScreen(
                         .padding(16.dp)
                 ) {
                     Text(
-                        "⚠️ ${settingsSummary(errors)}",
+                        "⚠️ ${settingsSummary(uiModel.errors)}",
                         fontSize = 14.sp,
                         color = Color(0xFFC62828)
                     )
@@ -73,7 +73,7 @@ internal fun SettingsHomeScreen(
             ) {
                 DropdownField(
                     label = "模型供应商",
-                    value = state.provider.displayName,
+                    value = uiModel.providerDisplayName,
                     items = Provider.entries.filter { it.isSupportedOnAndroid },
                     itemLabel = { it.displayName },
                     onItemSelected = { provider ->
@@ -84,7 +84,7 @@ internal fun SettingsHomeScreen(
                 
                 DropdownField(
                     label = "运行模式",
-                    value = state.runtimePreset.title,
+                    value = uiModel.runtimePresetTitle,
                     items = Preset.entries,
                     itemLabel = { it.title },
                     onItemSelected = { preset ->
@@ -101,8 +101,7 @@ internal fun SettingsHomeScreen(
 
 @Composable
 internal fun ProviderSettingsScreen(
-    state: State,
-    errors: FormErrors,
+    uiModel: ProviderSettingsUiModel,
     onBackClick: () -> Unit,
     onApiKeyChanged: (String) -> Unit,
     onModelIdChanged: (String) -> Unit,
@@ -111,7 +110,7 @@ internal fun ProviderSettingsScreen(
 ) {
     Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF5F5F5))) {
         Bar(
-            title = state.provider.displayName,
+            title = uiModel.providerDisplayName,
             onBackClick = onBackClick
         )
         
@@ -129,42 +128,44 @@ internal fun ProviderSettingsScreen(
             ) {
                 TextField(
                     "模型 ID",
-                    state.modelId,
+                    uiModel.modelId,
                     onModelIdChanged,
-                    errors.modelId,
-                    state.provider.defaultModelId
+                    uiModel.errors.modelId,
+                    uiModel.modelIdPlaceholder
                 )
                 
-                if (state.provider.requiresApiKey) {
+                if (uiModel.showApiKey) {
                     TextField(
                         "API Key",
-                        state.apiKey,
+                        uiModel.apiKey,
                         onApiKeyChanged,
-                        errors.apiKey,
-                        "输入 API 密钥",
+                        uiModel.errors.apiKey,
+                        uiModel.apiKeyPlaceholder,
                         secure = true
                     )
                 }
                 
-                if (state.provider != Provider.BEDROCK) {
+                if (uiModel.showBaseUrl) {
                     TextField(
-                        state.provider.baseUrlLabel,
-                        state.baseUrl,
+                        uiModel.baseUrlLabel,
+                        uiModel.baseUrl,
                         onBaseUrlChanged,
-                        errors.baseUrl,
-                        state.provider.defaultBaseUrl.ifBlank { "https://api.example.com" },
+                        uiModel.errors.baseUrl,
+                        uiModel.baseUrlPlaceholder,
                         keyboardType = KeyboardType.Uri
                     )
                 }
                 
-                state.provider.extraFieldLabel?.let {
-                    TextField(
-                        it,
-                        state.extraConfig,
-                        onExtraConfigChanged,
-                        errors.extraConfig,
-                        state.provider.extraFieldDefault
-                    )
+                uiModel.extraFieldLabel?.let { label ->
+                    if (uiModel.showExtraField) {
+                        TextField(
+                            label,
+                            uiModel.extraConfig,
+                            onExtraConfigChanged,
+                            uiModel.errors.extraConfig,
+                            uiModel.extraFieldPlaceholder
+                        )
+                    }
                 }
             }
             
@@ -175,8 +176,7 @@ internal fun ProviderSettingsScreen(
 
 @Composable
 internal fun RuntimeSettingsScreen(
-    state: State,
-    errors: FormErrors,
+    uiModel: RuntimeSettingsUiModel,
     onBackClick: () -> Unit,
     onSystemPromptChanged: (String) -> Unit,
     onTemperatureChanged: (String) -> Unit,
@@ -184,7 +184,7 @@ internal fun RuntimeSettingsScreen(
 ) {
     Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF5F5F5))) {
         Bar(
-            title = state.runtimePreset.title,
+            title = uiModel.runtimePresetTitle,
             onBackClick = onBackClick
         )
         
@@ -202,27 +202,27 @@ internal fun RuntimeSettingsScreen(
             ) {
                 TextField(
                     "System Prompt",
-                    state.systemPrompt,
+                    uiModel.systemPrompt,
                     onSystemPromptChanged,
-                    placeholder = "可选的系统提示词",
+                    placeholder = uiModel.systemPromptPlaceholder,
                     singleLine = false
                 )
                 
                 TextField(
                     "Temperature",
-                    state.temperature,
+                    uiModel.temperature,
                     onTemperatureChanged,
-                    errors.temperature,
-                    "0.2",
+                    uiModel.errors.temperature,
+                    uiModel.temperaturePlaceholder,
                     keyboardType = KeyboardType.Decimal
                 )
                 
                 TextField(
                     "Max Iterations",
-                    state.maxIterations,
+                    uiModel.maxIterations,
                     onMaxIterationsChanged,
-                    errors.maxIterations,
-                    "50",
+                    uiModel.errors.maxIterations,
+                    uiModel.maxIterationsPlaceholder,
                     keyboardType = KeyboardType.Number
                 )
             }

@@ -16,6 +16,7 @@ import com.lhzkml.codestudio.components.Text
 import com.lhzkml.codestudio.components.rememberSideState
 import com.lhzkml.codestudio.components.SideValue
 import com.lhzkml.codestudio.viewmodel.*
+import com.lhzkml.codestudio.ui.model.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
@@ -149,9 +150,9 @@ internal fun App() {
         }
 
         Route.Home.value -> {
+            val uiModel = settingsViewModel.toUiModel().toHomeUiModel(settingsState.formErrors)
             SettingsHomeScreen(
-                state = settingsViewModel.toState(),
-                errors = settingsState.formErrors,
+                uiModel = uiModel,
                 onBackClick = { navigationViewModel.onEvent(NavigationEvent.NavigateTo(Route.Chat.value)) },
                 onOpenProvider = { navigationViewModel.onEvent(NavigationEvent.NavigateTo(Route.Model.value)) },
                 onOpenRuntime = { navigationViewModel.onEvent(NavigationEvent.NavigateTo(Route.Runtime.value)) },
@@ -161,9 +162,9 @@ internal fun App() {
         }
 
         Route.Model.value -> {
+            val uiModel = settingsViewModel.toUiModel().toProviderUiModel(settingsState.formErrors)
             ProviderSettingsScreen(
-                state = settingsViewModel.toState(),
-                errors = settingsState.formErrors,
+                uiModel = uiModel,
                 onBackClick = { navigationViewModel.onEvent(NavigationEvent.NavigateTo(Route.Home.value)) },
                 onApiKeyChanged = { settingsViewModel.onEvent(SettingsEvent.UpdateApiKey(it)) },
                 onModelIdChanged = { settingsViewModel.onEvent(SettingsEvent.UpdateModelId(it)) },
@@ -173,9 +174,9 @@ internal fun App() {
         }
 
         Route.Runtime.value -> {
+            val uiModel = settingsViewModel.toUiModel().toRuntimeUiModel(settingsState.formErrors)
             RuntimeSettingsScreen(
-                state = settingsViewModel.toState(),
-                errors = settingsState.formErrors,
+                uiModel = uiModel,
                 onBackClick = { navigationViewModel.onEvent(NavigationEvent.NavigateTo(Route.Home.value)) },
                 onSystemPromptChanged = { settingsViewModel.onEvent(SettingsEvent.UpdateSystemPrompt(it)) },
                 onTemperatureChanged = { settingsViewModel.onEvent(SettingsEvent.UpdateTemperature(it)) },
