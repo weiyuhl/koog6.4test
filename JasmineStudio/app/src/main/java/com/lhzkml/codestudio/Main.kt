@@ -228,7 +228,7 @@ fun App() {
 
                         SideItem(
                             icon = { Text("💬") },
-                            label = { Text("聊天") },
+                            label = { Text("聊天", fontSize = 16.sp) },
                             selected = currentRoute == Route.Chat.value,
                             onClick = ::openChat,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
@@ -236,7 +236,7 @@ fun App() {
 
                         SideItem(
                             icon = { Icon(Icons.Default.Delete, contentDescription = null) },
-                            label = { Text("清空对话") },
+                            label = { Text("清空对话", fontSize = 16.sp) },
                             selected = false,
                             onClick = {
                                 clearChat()
@@ -247,26 +247,28 @@ fun App() {
                     }
 
                     // Bottom section
-                    Column {
+                    Column(
+                        modifier = Modifier.padding(bottom = 32.dp)
+                    ) {
                         Column(
-                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 20.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Text(
                                 "消息: ${messages.size}",
-                                fontSize = 13.sp,
-                                color = Color(0xFF999999)
+                                fontSize = 16.sp,
+                                color = Color(0xFF666666)
                             )
                             Text(
                                 provider.displayName,
-                                fontSize = 13.sp,
-                                color = Color(0xFF999999)
+                                fontSize = 16.sp,
+                                color = Color(0xFF666666)
                             )
                         }
 
                         SideItem(
                             icon = { Icon(Icons.Default.Settings, contentDescription = null) },
-                            label = { Text("设置") },
+                            label = { Text("设置", fontSize = 16.sp) },
                             selected = currentRoute != Route.Chat.value,
                             onClick = ::openSettings,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
