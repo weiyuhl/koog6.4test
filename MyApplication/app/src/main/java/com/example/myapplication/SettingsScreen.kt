@@ -25,9 +25,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.myapplication.components.DropdownField
 import com.example.myapplication.components.Icon
 import com.example.myapplication.components.IconButton
-import com.example.myapplication.components.RadioButton
 import com.example.myapplication.components.Scaffold
 import com.example.myapplication.components.Surface
 import com.example.myapplication.components.Text
@@ -40,6 +40,8 @@ internal fun NativeSettingsHomeScreen(
     onBackClick: () -> Unit,
     onOpenProviderSettings: () -> Unit,
     onOpenRuntimeSettings: () -> Unit,
+    onProviderSelected: (Provider) -> Unit,
+    onRuntimePresetSelected: (AgentRuntimePreset) -> Unit,
 ) {
     Scaffold(
         topBar = {
@@ -96,27 +98,34 @@ internal fun NativeSettingsHomeScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            SettingsItem(
-                title = "模型供应商",
-                subtitle = "${state.provider.displayName} · ${state.modelId.ifBlank { "未设置" }}",
-                onClick = onOpenProviderSettings
-            )
+            Column(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                DropdownField(
+                    label = "模型供应商",
+                    value = state.provider.displayName,
+                    items = Provider.entries.filter { it.isSupportedOnAndroid },
+                    itemLabel = { it.displayName },
+                    onItemSelected = { provider ->
+                        onProviderSelected(provider)
+                        onOpenProviderSettings()
+                    }
+                )
+                
+                DropdownField(
+                    label = "运行模式",
+                    value = state.runtimePreset.title,
+                    items = AgentRuntimePreset.entries,
+                    itemLabel = { it.title },
+                    onItemSelected = { preset ->
+                        onRuntimePresetSelected(preset)
+                        onOpenRuntimeSettings()
+                    }
+                )
+            }
             
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            SettingsItem(
-                title = "运行模式",
-                subtitle = state.runtimePreset.title,
-                onClick = onOpenRuntimeSettings
-            )
-            
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            SettingsItem(
-                title = "Temperature",
-                subtitle = state.temperature,
-                onClick = onOpenRuntimeSettings
-            )
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
@@ -126,7 +135,6 @@ internal fun NativeProviderSettingsScreen(
     state: NativeSettingsState,
     errors: NativeFormErrors,
     onBackClick: () -> Unit,
-    onProviderSelected: (Provider) -> Unit,
     onApiKeyChanged: (String) -> Unit,
     onModelIdChanged: (String) -> Unit,
     onBaseUrlChanged: (String) -> Unit,
@@ -141,7 +149,7 @@ internal fun NativeProviderSettingsScreen(
                 TopAppBar(
                     title = {
                         Text(
-                            "模型供应商",
+                            state.provider.displayName,
                             fontSize = 17.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF333333)
@@ -170,23 +178,6 @@ internal fun NativeProviderSettingsScreen(
                 .background(Color(0xFFF5F5F5))
                 .verticalScroll(rememberScrollState())
         ) {
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color.White)
-                    .padding(vertical = 8.dp)
-            ) {
-                Provider.entries.forEach { provider ->
-                    ProviderItem(
-                        provider = provider,
-                        selected = provider == state.provider,
-                        onSelect = { onProviderSelected(provider) }
-                    )
-                }
-            }
-            
             Spacer(modifier = Modifier.height(16.dp))
             
             Column(
@@ -244,7 +235,6 @@ internal fun NativeRuntimeSettingsScreen(
     state: NativeSettingsState,
     errors: NativeFormErrors,
     onBackClick: () -> Unit,
-    onRuntimePresetSelected: (AgentRuntimePreset) -> Unit,
     onSystemPromptChanged: (String) -> Unit,
     onTemperatureChanged: (String) -> Unit,
     onMaxIterationsChanged: (String) -> Unit,
@@ -258,7 +248,7 @@ internal fun NativeRuntimeSettingsScreen(
                 TopAppBar(
                     title = {
                         Text(
-                            "运行参数",
+                            state.runtimePreset.title,
                             fontSize = 17.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF333333)
@@ -287,23 +277,6 @@ internal fun NativeRuntimeSettingsScreen(
                 .background(Color(0xFFF5F5F5))
                 .verticalScroll(rememberScrollState())
         ) {
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color.White)
-                    .padding(vertical = 8.dp)
-            ) {
-                AgentRuntimePreset.entries.forEach { preset ->
-                    PresetItem(
-                        preset = preset,
-                        selected = preset == state.runtimePreset,
-                        onSelect = { onRuntimePresetSelected(preset) }
-                    )
-                }
-            }
-
             Spacer(modifier = Modifier.height(16.dp))
             
             Column(
@@ -342,120 +315,3 @@ internal fun NativeRuntimeSettingsScreen(
     }
 }
 
-@Composable
-private fun SettingsItem(
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .background(Color.White)
-            .padding(horizontal = 16.dp, vertical = 16.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                title,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color(0xFF333333)
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                subtitle,
-                fontSize = 13.sp,
-                color = Color(0xFF999999)
-            )
-        }
-        Icon(
-            Icons.AutoMirrored.Filled.KeyboardArrowRight,
-            contentDescription = null,
-            tint = Color(0xFFCCCCCC),
-            modifier = Modifier.size(20.dp)
-        )
-    }
-}
-
-@Composable
-private fun ProviderItem(
-    provider: Provider,
-    selected: Boolean,
-    onSelect: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onSelect, enabled = provider.isSupportedOnAndroid)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        RadioButton(
-            selected = selected,
-            onClick = onSelect,
-            enabled = provider.isSupportedOnAndroid,
-            selectedColor = Color(0xFF007AFF),
-            unselectedColor = Color(0xFFCCCCCC)
-        )
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                provider.displayName,
-                fontSize = 15.sp,
-                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                color = Color(0xFF333333)
-            )
-            Text(
-                if (provider.isSupportedOnAndroid) provider.providerNote else "当前不可用",
-                fontSize = 13.sp,
-                color = Color(0xFF999999)
-            )
-        }
-    }
-}
-
-@Composable
-private fun PresetItem(
-    preset: AgentRuntimePreset,
-    selected: Boolean,
-    onSelect: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onSelect)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        RadioButton(
-            selected = selected,
-            onClick = onSelect,
-            selectedColor = Color(0xFF007AFF),
-            unselectedColor = Color(0xFFCCCCCC)
-        )
-        Column(modifier = Modifier.weight(1f)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    preset.title,
-                    fontSize = 15.sp,
-                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                    color = Color(0xFF333333)
-                )
-                Text(
-                    preset.family,
-                    fontSize = 12.sp,
-                    color = Color(0xFF007AFF)
-                )
-            }
-            Text(
-                preset.description,
-                fontSize = 13.sp,
-                color = Color(0xFF999999)
-            )
-        }
-    }
-}

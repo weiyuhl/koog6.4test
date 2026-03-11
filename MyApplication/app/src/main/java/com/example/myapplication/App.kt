@@ -316,14 +316,6 @@ fun App() {
                     onOpenRuntimeSettings = {
                         navController.navigate(NativeRoute.SettingsRuntime.value) { launchSingleTop = true }
                     },
-                )
-            }
-
-            composable(NativeRoute.SettingsModel.value) {
-                NativeProviderSettingsScreen(
-                    state = currentState(),
-                    errors = formErrors,
-                    onBackClick = { navController.popBackStack() },
                     onProviderSelected = { next ->
                         providerName = next.name
                         modelId = next.defaultModelId
@@ -339,6 +331,18 @@ fun App() {
                             )
                         )
                     },
+                    onRuntimePresetSelected = { next ->
+                        runtimePreset = next
+                        persistSettings(currentState(runtimePresetValue = next))
+                    },
+                )
+            }
+
+            composable(NativeRoute.SettingsModel.value) {
+                NativeProviderSettingsScreen(
+                    state = currentState(),
+                    errors = formErrors,
+                    onBackClick = { navController.popBackStack() },
                     onApiKeyChanged = {
                         apiKey = it
                         formErrors = formErrors.copy(apiKey = null)
@@ -367,10 +371,6 @@ fun App() {
                     state = currentState(),
                     errors = formErrors,
                     onBackClick = { navController.popBackStack() },
-                    onRuntimePresetSelected = {
-                        runtimePreset = it
-                        persistSettings(currentState(runtimePresetValue = it))
-                    },
                     onSystemPromptChanged = {
                         systemPrompt = it
                         persistSettings(currentState(systemPromptValue = it))
