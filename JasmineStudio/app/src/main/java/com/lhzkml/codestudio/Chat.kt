@@ -189,7 +189,6 @@ private fun ChatComposer(
         modifier = Modifier
             .fillMaxWidth()
             .background(Color.White)
-            .navigationBarsPadding()
             .imePadding()
     ) {
         if (isRunning) {
