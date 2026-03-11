@@ -15,38 +15,36 @@ import com.lhzkml.codestudio.components.SideItem
 import com.lhzkml.codestudio.components.Text
 import com.lhzkml.codestudio.components.rememberSideState
 import com.lhzkml.codestudio.components.SideValue
-import com.lhzkml.codestudio.viewmodel.MainViewModel
+import com.lhzkml.codestudio.viewmodel.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 
 @Composable
-internal fun App(viewModel: MainViewModel = viewModel()) {
-    val uiState by viewModel.uiState.collectAsState()
+internal fun App() {
+    val context = LocalContext.current
+    val factory = ViewModelFactory(context)
+    
+    val navigationViewModel: NavigationViewModel = viewModel(factory = factory)
+    val chatViewModel: ChatViewModel = viewModel(factory = factory)
+    val settingsViewModel: SettingsViewModel = viewModel(factory = factory)
+    
+    val navigationState by navigationViewModel.uiState.collectAsStateWithLifecycle()
+    val chatState by chatViewModel.uiState.collectAsStateWithLifecycle()
+    val settingsState by settingsViewModel.uiState.collectAsStateWithLifecycle()
+    
     val scope = rememberCoroutineScope()
     val sideState = rememberSideState(SideValue.Closed)
-    
-    LaunchedEffect(uiState.currentRoute) {
-        if (sideState.isOpen) sideState.close()
-    }
-    
-    LaunchedEffect(uiState.isSidebarOpen) {
-        if (uiState.isSidebarOpen) {
-            sideState.open()
-        } else {
-            sideState.close()
-        }
-    }
 
-    when (uiState.currentRoute) {
+    when (navigationState.currentRoute) {
         Route.Chat.value -> {
             Side(
                 sideState = sideState,
@@ -84,7 +82,7 @@ internal fun App(viewModel: MainViewModel = viewModel()) {
                                     label = { Text("聊天", fontSize = 16.sp) },
                                     selected = true,
                                     onClick = {
-                                        viewModel.navigateTo(Route.Chat.value)
+                                        navigationViewModel.onEvent(NavigationEvent.NavigateTo(Route.Chat.value))
                                         scope.launch { sideState.close() }
                                     },
                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
@@ -95,7 +93,7 @@ internal fun App(viewModel: MainViewModel = viewModel()) {
                                     label = { Text("清空对话", fontSize = 16.sp) },
                                     selected = false,
                                     onClick = {
-                                        viewModel.clearChat()
+                                        chatViewModel.onEvent(ChatEvent.ClearChat)
                                         scope.launch { sideState.close() }
                                     },
                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
@@ -112,12 +110,12 @@ internal fun App(viewModel: MainViewModel = viewModel()) {
                                     verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     Text(
-                                        "消息: ${uiState.messages.size}",
+                                        "消息: ${chatState.messages.size}",
                                         fontSize = 16.sp,
                                         color = Color(0xFF666666)
                                     )
                                     Text(
-                                        uiState.provider.displayName,
+                                        chatState.provider.displayName,
                                         fontSize = 16.sp,
                                         color = Color(0xFF666666)
                                     )
@@ -128,7 +126,7 @@ internal fun App(viewModel: MainViewModel = viewModel()) {
                                     label = { Text("设置", fontSize = 16.sp) },
                                     selected = false,
                                     onClick = {
-                                        viewModel.navigateTo(Route.Home.value)
+                                        navigationViewModel.onEvent(NavigationEvent.NavigateTo(Route.Home.value))
                                         scope.launch { sideState.close() }
                                     },
                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
@@ -139,12 +137,12 @@ internal fun App(viewModel: MainViewModel = viewModel()) {
                 },
             ) {
                 ChatScreen(
-                    provider = uiState.provider,
-                    prompt = uiState.prompt,
-                    isRunning = uiState.isRunning,
-                    messages = uiState.messages,
-                    onPromptChanged = viewModel::updatePrompt,
-                    onSendClick = viewModel::submitPrompt,
+                    provider = chatState.provider,
+                    prompt = chatState.prompt,
+                    isRunning = chatState.isRunning,
+                    messages = chatState.messages,
+                    onPromptChanged = { chatViewModel.onEvent(ChatEvent.UpdatePrompt(it)) },
+                    onSendClick = { chatViewModel.onEvent(ChatEvent.SendMessage) },
                     onMenuClick = { scope.launch { sideState.open() } },
                 )
             }
@@ -152,69 +150,36 @@ internal fun App(viewModel: MainViewModel = viewModel()) {
 
         Route.Home.value -> {
             SettingsHomeScreen(
-                state = State(
-                    provider = uiState.provider,
-                    apiKey = uiState.apiKey,
-                    modelId = uiState.modelId,
-                    baseUrl = uiState.baseUrl,
-                    extraConfig = uiState.extraConfig,
-                    promptDraft = uiState.prompt,
-                    runtimePreset = uiState.runtimePreset,
-                    systemPrompt = uiState.systemPrompt,
-                    temperature = uiState.temperature,
-                    maxIterations = uiState.maxIterations
-                ),
-                errors = uiState.formErrors,
-                onBackClick = { viewModel.navigateTo(Route.Chat.value) },
-                onOpenProvider = { viewModel.navigateTo(Route.Model.value) },
-                onOpenRuntime = { viewModel.navigateTo(Route.Runtime.value) },
-                onProviderChange = viewModel::updateProvider,
-                onRuntimeChange = viewModel::updateRuntimePreset,
+                state = settingsViewModel.toState(),
+                errors = settingsState.formErrors,
+                onBackClick = { navigationViewModel.onEvent(NavigationEvent.NavigateTo(Route.Chat.value)) },
+                onOpenProvider = { navigationViewModel.onEvent(NavigationEvent.NavigateTo(Route.Model.value)) },
+                onOpenRuntime = { navigationViewModel.onEvent(NavigationEvent.NavigateTo(Route.Runtime.value)) },
+                onProviderChange = { settingsViewModel.onEvent(SettingsEvent.UpdateProvider(it)) },
+                onRuntimeChange = { settingsViewModel.onEvent(SettingsEvent.UpdateRuntimePreset(it)) },
             )
         }
 
         Route.Model.value -> {
             ProviderSettingsScreen(
-                state = State(
-                    provider = uiState.provider,
-                    apiKey = uiState.apiKey,
-                    modelId = uiState.modelId,
-                    baseUrl = uiState.baseUrl,
-                    extraConfig = uiState.extraConfig,
-                    promptDraft = uiState.prompt,
-                    runtimePreset = uiState.runtimePreset,
-                    systemPrompt = uiState.systemPrompt,
-                    temperature = uiState.temperature,
-                    maxIterations = uiState.maxIterations
-                ),
-                errors = uiState.formErrors,
-                onBackClick = { viewModel.navigateTo(Route.Home.value) },
-                onApiKeyChanged = viewModel::updateApiKey,
-                onModelIdChanged = viewModel::updateModelId,
-                onBaseUrlChanged = viewModel::updateBaseUrl,
-                onExtraConfigChanged = viewModel::updateExtraConfig,
+                state = settingsViewModel.toState(),
+                errors = settingsState.formErrors,
+                onBackClick = { navigationViewModel.onEvent(NavigationEvent.NavigateTo(Route.Home.value)) },
+                onApiKeyChanged = { settingsViewModel.onEvent(SettingsEvent.UpdateApiKey(it)) },
+                onModelIdChanged = { settingsViewModel.onEvent(SettingsEvent.UpdateModelId(it)) },
+                onBaseUrlChanged = { settingsViewModel.onEvent(SettingsEvent.UpdateBaseUrl(it)) },
+                onExtraConfigChanged = { settingsViewModel.onEvent(SettingsEvent.UpdateExtraConfig(it)) },
             )
         }
 
         Route.Runtime.value -> {
             RuntimeSettingsScreen(
-                state = State(
-                    provider = uiState.provider,
-                    apiKey = uiState.apiKey,
-                    modelId = uiState.modelId,
-                    baseUrl = uiState.baseUrl,
-                    extraConfig = uiState.extraConfig,
-                    promptDraft = uiState.prompt,
-                    runtimePreset = uiState.runtimePreset,
-                    systemPrompt = uiState.systemPrompt,
-                    temperature = uiState.temperature,
-                    maxIterations = uiState.maxIterations
-                ),
-                errors = uiState.formErrors,
-                onBackClick = { viewModel.navigateTo(Route.Home.value) },
-                onSystemPromptChanged = viewModel::updateSystemPrompt,
-                onTemperatureChanged = viewModel::updateTemperature,
-                onMaxIterationsChanged = viewModel::updateMaxIterations,
+                state = settingsViewModel.toState(),
+                errors = settingsState.formErrors,
+                onBackClick = { navigationViewModel.onEvent(NavigationEvent.NavigateTo(Route.Home.value)) },
+                onSystemPromptChanged = { settingsViewModel.onEvent(SettingsEvent.UpdateSystemPrompt(it)) },
+                onTemperatureChanged = { settingsViewModel.onEvent(SettingsEvent.UpdateTemperature(it)) },
+                onMaxIterationsChanged = { settingsViewModel.onEvent(SettingsEvent.UpdateMaxIterations(it)) },
             )
         }
     }

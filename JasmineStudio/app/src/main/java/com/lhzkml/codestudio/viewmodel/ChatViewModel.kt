@@ -1,0 +1,181 @@
+package com.lhzkml.codestudio.viewmodel
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.lhzkml.codestudio.*
+import com.lhzkml.codestudio.repository.ChatRepository
+import com.lhzkml.codestudio.repository.SettingsRepository
+import com.lhzkml.codestudio.usecase.SendMessageUseCase
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+
+internal data class ChatUiState(
+    val messages: List<ChatMessage> = emptyList(),
+    val prompt: String = "",
+    val isRunning: Boolean = false,
+    val provider: Provider = Provider.OPENAI
+)
+
+internal sealed interface ChatEvent {
+    data class UpdatePrompt(val text: String) : ChatEvent
+    data object SendMessage : ChatEvent
+    data object ClearChat : ChatEvent
+}
+
+internal class ChatViewModel(
+    private val chatRepository: ChatRepository,
+    private val settingsRepository: SettingsRepository,
+    private val sendMessageUseCase: SendMessageUseCase
+) : ViewModel() {
+    
+    private val _uiState = MutableStateFlow(ChatUiState())
+    val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
+    
+    private var nextMessageId = 0L
+    
+    init {
+        loadMessages()
+        loadProvider()
+    }
+    
+    private fun loadMessages() {
+        val messages = chatRepository.loadMessages()
+        nextMessageId = (messages.maxOfOrNull { it.id } ?: 0L) + 1L
+        _uiState.update { it.copy(messages = messages) }
+    }
+    
+    private fun loadProvider() {
+        val settings = settingsRepository.loadSettings()
+        val provider = Provider.entries.firstOrNull { 
+            it.name == settings.providerName 
+        } ?: Provider.OPENAI
+        _uiState.update { it.copy(provider = provider) }
+    }
+    
+    fun onEvent(event: ChatEvent) {
+        when (event) {
+            is ChatEvent.UpdatePrompt -> updatePrompt(event.text)
+            is ChatEvent.SendMessage -> sendMessage()
+            is ChatEvent.ClearChat -> clearChat()
+        }
+    }
+    
+    private fun updatePrompt(text: String) {
+        _uiState.update { it.copy(prompt = text) }
+    }
+    
+    private fun sendMessage() {
+        val currentState = _uiState.value
+        val userPrompt = currentState.prompt.trim()
+        
+        if (userPrompt.isBlank() || currentState.isRunning) return
+        
+        addMessage(MessageRole.User, userPrompt)
+        val assistantId = addMessage(MessageRole.Assistant, STREAMING_PLACEHOLDER, currentState.provider.displayName)
+        
+        _uiState.update { it.copy(prompt = "", isRunning = true) }
+        
+        viewModelScope.launch {
+            val settings = settingsRepository.loadSettings()
+            val presetId = settingsRepository.loadRuntimePresetId()
+            val preset = Preset.fromId(presetId)
+            
+            val state = State(
+                provider = currentState.provider,
+                apiKey = settings.apiKey,
+                modelId = settings.modelId,
+                baseUrl = settings.baseUrl,
+                extraConfig = settings.extraConfig,
+                promptDraft = "",
+                runtimePreset = preset,
+                systemPrompt = settings.systemPrompt,
+                temperature = settings.temperature,
+                maxIterations = settings.maxIterations
+            )
+            
+            val validation = validateSettings(state)
+            if (validation.hasAny()) {
+                removeMessage(assistantId)
+                addMessage(
+                    MessageRole.System,
+                    "当前还不能发送消息，请先到设置页完善配置：${settingsSummary(validation)}",
+                    "设置未完成"
+                )
+                _uiState.update { it.copy(isRunning = false) }
+                return@launch
+            }
+            
+            val result = sendMessageUseCase.execute(
+                state = state,
+                userPrompt = userPrompt,
+                onTextDelta = { delta ->
+                    updateMessage(assistantId) { current ->
+                        current.copy(
+                            text = if (current.text == STREAMING_PLACEHOLDER) delta else current.text + delta
+                        )
+                    }
+                }
+            )
+            
+            result.fold(
+                onSuccess = { agentResult ->
+                    updateMessage(assistantId) { current ->
+                        current.copy(
+                            text = current.text.takeUnless { it.isBlank() || it == STREAMING_PLACEHOLDER }
+                                ?: agentResult.answer
+                        )
+                    }
+                    if (agentResult.events.isNotEmpty()) {
+                        addMessage(MessageRole.System, agentResult.events.joinToString("\n"), "执行日志")
+                    }
+                },
+                onFailure = { error ->
+                    removeMessage(assistantId)
+                    addMessage(
+                        MessageRole.System,
+                        error.message ?: error::class.simpleName ?: "Unknown error",
+                        "错误"
+                    )
+                }
+            )
+            
+            _uiState.update { it.copy(isRunning = false) }
+        }
+    }
+    
+    private fun clearChat() {
+        _uiState.update { it.copy(messages = emptyList()) }
+        persistMessages()
+        addMessage(MessageRole.System, "对话已清空。现在可以重新开始聊天", "新对话")
+    }
+    
+    private fun addMessage(role: MessageRole, text: String, label: String? = null): Long {
+        val message = ChatMessage(nextMessageId++, role, text, label)
+        _uiState.update { it.copy(messages = it.messages + message) }
+        persistMessages()
+        return message.id
+    }
+    
+    private fun updateMessage(id: Long, update: (ChatMessage) -> ChatMessage) {
+        _uiState.update { state ->
+            state.copy(
+                messages = state.messages.map { if (it.id == id) update(it) else it }
+            )
+        }
+        persistMessages()
+    }
+    
+    private fun removeMessage(id: Long) {
+        _uiState.update { state ->
+            state.copy(messages = state.messages.filter { it.id != id })
+        }
+        persistMessages()
+    }
+    
+    private fun persistMessages() {
+        chatRepository.saveMessages(_uiState.value.messages)
+    }
+}
