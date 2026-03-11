@@ -1,12 +1,12 @@
 package com.lhzkml.codestudio.components
 
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -20,18 +20,22 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.lhzkml.codestudio.Colors
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 @Composable
 fun SideItem(
@@ -81,14 +85,12 @@ fun SideContent(
             .fillMaxHeight()
             .background(Color.White)
     ) {
-        // 状态栏区域 - 白色背景
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(Color.White)
                 .statusBarsPadding()
         )
-        // 侧边栏内容 - 灰色背景
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -100,44 +102,143 @@ fun SideContent(
     }
 }
 
+enum class SideValue {
+    Closed,
+    Open
+}
+
 @Composable
 fun Side(
-    sideContent: @Composable () -> Unit,
+    sideContent: @Composable ColumnScope.() -> Unit,
     modifier: Modifier = Modifier,
-    sideState: SideState,
+    sideState: SideState = rememberSideState(SideValue.Closed),
     content: @Composable () -> Unit
 ) {
+    val density = LocalDensity.current
     val sideWidth = 280.dp
-    val offsetX by animateDpAsState(
-        targetValue = if (sideState.isOpen) sideWidth else 0.dp,
-        label = "side_offset"
-    )
+    val sideWidthPx = with(density) { sideWidth.toPx() }
     val scope = rememberCoroutineScope()
     
+    var offset by remember { mutableFloatStateOf(0f) }
+    var isDragging by remember { mutableStateOf(false) }
+    
+    if (!isDragging) {
+        offset = if (sideState.isOpen) sideWidthPx else 0f
+    }
+    
     Box(modifier = modifier.fillMaxSize()) {
-        // 侧边栏 - 固定在左边
+        // 侧边栏 - 固定280dp宽度
         Box(
             modifier = Modifier
                 .width(sideWidth)
                 .fillMaxHeight()
+                .offset { IntOffset((-sideWidthPx + offset).roundToInt(), 0) }
+                .pointerInput(Unit) {
+                    detectHorizontalDragGestures(
+                        onDragStart = {
+                            isDragging = true
+                        },
+                        onDragEnd = {
+                            isDragging = false
+                            scope.launch {
+                                // 从关闭到打开：需要超过50%
+                                // 从打开到关闭：只需向左滑动1/3（还剩2/3时就关闭）
+                                if (sideState.isOpen) {
+                                    if (offset > sideWidthPx * 2 / 3) {
+                                        sideState.open()
+                                    } else {
+                                        sideState.close()
+                                    }
+                                } else {
+                                    if (offset > sideWidthPx / 2) {
+                                        sideState.open()
+                                    } else {
+                                        sideState.close()
+                                    }
+                                }
+                            }
+                        },
+                        onDragCancel = {
+                            isDragging = false
+                            scope.launch {
+                                // 从关闭到打开：需要超过50%
+                                // 从打开到关闭：只需向左滑动1/3（还剩2/3时就关闭）
+                                if (sideState.isOpen) {
+                                    if (offset > sideWidthPx * 2 / 3) {
+                                        sideState.open()
+                                    } else {
+                                        sideState.close()
+                                    }
+                                } else {
+                                    if (offset > sideWidthPx / 2) {
+                                        sideState.open()
+                                    } else {
+                                        sideState.close()
+                                    }
+                                }
+                            }
+                        },
+                        onHorizontalDrag = { _, dragAmount ->
+                            offset = (offset + dragAmount).coerceIn(0f, sideWidthPx)
+                        }
+                    )
+                }
         ) {
-            sideContent()
+            Column(Modifier.fillMaxSize(), content = sideContent)
         }
         
-        // 主界面 - 向右滑动
+        // 主界面 - 被侧边栏推着向右移动
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .offset { IntOffset(offsetX.roundToPx(), 0) }
+                .offset { IntOffset(offset.roundToInt(), 0) }
                 .pointerInput(Unit) {
                     detectHorizontalDragGestures(
-                        onDragEnd = {},
-                        onHorizontalDrag = { _, dragAmount ->
-                            if (dragAmount > 20 && !sideState.isOpen) {
-                                scope.launch { sideState.open() }
-                            } else if (dragAmount < -20 && sideState.isOpen) {
-                                scope.launch { sideState.close() }
+                        onDragStart = {
+                            isDragging = true
+                        },
+                        onDragEnd = {
+                            isDragging = false
+                            scope.launch {
+                                // 从关闭到打开：需要超过50%
+                                // 从打开到关闭：只需向左滑动1/3（还剩2/3时就关闭）
+                                if (sideState.isOpen) {
+                                    if (offset > sideWidthPx * 2 / 3) {
+                                        sideState.open()
+                                    } else {
+                                        sideState.close()
+                                    }
+                                } else {
+                                    if (offset > sideWidthPx / 2) {
+                                        sideState.open()
+                                    } else {
+                                        sideState.close()
+                                    }
+                                }
                             }
+                        },
+                        onDragCancel = {
+                            isDragging = false
+                            scope.launch {
+                                // 从关闭到打开：需要超过50%
+                                // 从打开到关闭：只需向左滑动1/3（还剩2/3时就关闭）
+                                if (sideState.isOpen) {
+                                    if (offset > sideWidthPx * 2 / 3) {
+                                        sideState.open()
+                                    } else {
+                                        sideState.close()
+                                    }
+                                } else {
+                                    if (offset > sideWidthPx / 2) {
+                                        sideState.open()
+                                    } else {
+                                        sideState.close()
+                                    }
+                                }
+                            }
+                        },
+                        onHorizontalDrag = { _, dragAmount ->
+                            offset = (offset + dragAmount).coerceIn(0f, sideWidthPx)
                         }
                     )
                 }
@@ -159,24 +260,33 @@ fun Side(
     }
 }
 
-class SideState(initialValue: Boolean = false) {
-    private var _isOpen = mutableStateOf(initialValue)
-    val isOpen: Boolean get() = _isOpen.value
+class SideState(
+    initialValue: SideValue
+) {
+    private var _currentValue = mutableStateOf(initialValue)
+    val currentValue: SideValue
+        get() = _currentValue.value
+    
+    val isOpen: Boolean
+        get() = currentValue == SideValue.Open
+    
+    val isClosed: Boolean
+        get() = currentValue == SideValue.Closed
     
     fun open() {
-        _isOpen.value = true
+        _currentValue.value = SideValue.Open
     }
     
     fun close() {
-        _isOpen.value = false
-    }
-    
-    suspend fun animateTo(targetValue: Boolean) {
-        _isOpen.value = targetValue
+        _currentValue.value = SideValue.Closed
     }
 }
 
 @Composable
-fun rememberSideState(initialValue: Boolean = false): SideState {
-    return remember { SideState(initialValue) }
+fun rememberSideState(
+    initialValue: SideValue
+): SideState {
+    return remember {
+        SideState(initialValue = initialValue)
+    }
 }

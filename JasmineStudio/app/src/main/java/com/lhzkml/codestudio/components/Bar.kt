@@ -10,8 +10,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,11 +55,10 @@ fun Bar(
                         navigationIcon != null -> navigationIcon()
                         onBackClick != null -> {
                             IconButton(onClick = onBackClick) {
-                                Icon(
-                                    Icons.AutoMirrored.Filled.ArrowBack,
-                                    contentDescription = "返回",
-                                    tint = Color(0xFF333333),
-                                    modifier = Modifier.size(20.dp)
+                                Text(
+                                    "←",
+                                    fontSize = 24.sp,
+                                    color = Color(0xFF333333)
                                 )
                             }
                         }

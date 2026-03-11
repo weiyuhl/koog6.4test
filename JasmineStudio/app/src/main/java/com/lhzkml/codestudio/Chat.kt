@@ -20,9 +20,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Send
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
@@ -58,11 +55,10 @@ internal fun ChatScreen(
             title = "Chat",
             navigationIcon = {
                 IconButton(onClick = onMenuClick) {
-                    Icon(
-                        Icons.Default.Menu,
-                        contentDescription = "菜单",
-                        tint = Color(0xFF333333),
-                        modifier = Modifier.size(20.dp)
+                    Text(
+                        "☰",
+                        fontSize = 24.sp,
+                        color = Color(0xFF333333)
                     )
                 }
             }
@@ -260,12 +256,11 @@ private fun ChatComposer(
                         CircleShape
                     )
             ) {
-                Icon(
-                    Icons.Default.Send,
-                    contentDescription = "发送",
-                    tint = if (enabled && value.isNotBlank()) Color.White
-                    else Color(0xFF999999),
-                    modifier = Modifier.size(20.dp)
+                Text(
+                    "➤",
+                    fontSize = 20.sp,
+                    color = if (enabled && value.isNotBlank()) Color.White
+                    else Color(0xFF999999)
                 )
             }
         }

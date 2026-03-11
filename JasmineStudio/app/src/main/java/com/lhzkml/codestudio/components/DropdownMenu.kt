@@ -11,8 +11,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -61,11 +59,10 @@ fun <T> DropdownField(
                 color = if (enabled) Color(0xFF333333) else Color(0xFF999999),
                 modifier = Modifier.weight(1f)
             )
-            Icon(
-                Icons.Default.ArrowDropDown,
-                contentDescription = null,
-                tint = Color(0xFF999999),
-                modifier = Modifier.size(24.dp)
+            Text(
+                "▼",
+                fontSize = 12.sp,
+                color = Color(0xFF999999)
             )
         }
     }

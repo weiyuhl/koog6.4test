@@ -11,13 +11,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.Color
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Settings
 import com.lhzkml.codestudio.components.Icon
 import com.lhzkml.codestudio.components.Side
 import com.lhzkml.codestudio.components.SideContent
@@ -47,7 +45,7 @@ import kotlinx.coroutines.launch
 fun App() {
     val appContext = LocalContext.current.applicationContext
     val scope = rememberCoroutineScope()
-    val sideState = rememberSideState(false)
+    val sideState = rememberSideState(com.lhzkml.codestudio.components.SideValue.Closed)
     val localStore = remember(appContext) { LocalStore(appContext) }
     val restoredState = remember(localStore) { localStore.loadState() }
     val restoredProvider = remember(restoredState.settings.providerName) { 
@@ -206,80 +204,96 @@ fun App() {
         if (sideState.isOpen) sideState.close()
     }
 
-    Side(
-        sideState = sideState,
-        sideContent = {
-            SideContent {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.White),
-                    verticalArrangement = Arrangement.SpaceBetween
-                ) {
-                    // Top section
-                    Column {
-                        Text(
-                            "Chat",
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF333333),
-                            modifier = Modifier.padding(20.dp)
-                        )
-
-                        SideItem(
-                            icon = { Text("💬") },
-                            label = { Text("聊天", fontSize = 16.sp) },
-                            selected = currentRoute == Route.Chat.value,
-                            onClick = ::openChat,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-                        )
-
-                        SideItem(
-                            icon = { Icon(Icons.Default.Delete, contentDescription = null) },
-                            label = { Text("清空对话", fontSize = 16.sp) },
-                            selected = false,
-                            onClick = {
-                                clearChat()
-                                scope.launch { sideState.close() }
-                            },
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-                        )
-                    }
-
-                    // Bottom section
+    when (currentRoute) {
+        Route.Chat.value -> {
+            Side(
+                sideState = sideState,
+                sideContent = {
                     Column(
-                        modifier = Modifier.padding(bottom = 32.dp)
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.White),
+                        verticalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Column(
-                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 20.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                "消息: ${messages.size}",
-                                fontSize = 16.sp,
-                                color = Color(0xFF666666)
-                            )
-                            Text(
-                                provider.displayName,
-                                fontSize = 16.sp,
-                                color = Color(0xFF666666)
-                            )
-                        }
-
-                        SideItem(
-                            icon = { Icon(Icons.Default.Settings, contentDescription = null) },
-                            label = { Text("设置", fontSize = 16.sp) },
-                            selected = currentRoute != Route.Chat.value,
-                            onClick = ::openSettings,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                        // 状态栏区域
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color.White)
+                                .statusBarsPadding()
                         )
+                        
+                        // 侧边栏内容
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                                .background(Colors.Surface)
+                        ) {
+                            // Top section
+                            Column {
+                                Text(
+                                    "Chat",
+                                    fontSize = 24.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF333333),
+                                    modifier = Modifier.padding(20.dp)
+                                )
+
+                                SideItem(
+                                    icon = { Text("💬") },
+                                    label = { Text("聊天", fontSize = 16.sp) },
+                                    selected = true,
+                                    onClick = ::openChat,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                                )
+
+                                SideItem(
+                                    icon = { Text("🗑️") },
+                                    label = { Text("清空对话", fontSize = 16.sp) },
+                                    selected = false,
+                                    onClick = {
+                                        clearChat()
+                                        scope.launch { sideState.close() }
+                                    },
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.weight(1f))
+
+                            // Bottom section
+                            Column(
+                                modifier = Modifier.padding(bottom = 32.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 20.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(
+                                        "消息: ${messages.size}",
+                                        fontSize = 16.sp,
+                                        color = Color(0xFF666666)
+                                    )
+                                    Text(
+                                        provider.displayName,
+                                        fontSize = 16.sp,
+                                        color = Color(0xFF666666)
+                                    )
+                                }
+
+                                SideItem(
+                                    icon = { Text("⚙️") },
+                                    label = { Text("设置", fontSize = 16.sp) },
+                                    selected = false,
+                                    onClick = ::openSettings,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
                     }
-                }
-            }
-        },
-    ) {
-        when (currentRoute) {
-            Route.Chat.value -> {
+                },
+            ) {
                 ChatScreen(
                     provider = provider,
                     prompt = prompt,
@@ -290,8 +304,9 @@ fun App() {
                     onMenuClick = { scope.launch { sideState.open() } },
                 )
             }
+        }
 
-            Route.Home.value -> {
+        Route.Home.value -> {
                 SettingsHomeScreen(
                     state = currentState(),
                     errors = formErrors,
@@ -369,7 +384,6 @@ fun App() {
                     },
                 )
             }
-        }
     }
 }
 
