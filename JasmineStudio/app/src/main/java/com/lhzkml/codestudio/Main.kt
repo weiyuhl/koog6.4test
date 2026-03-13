@@ -20,6 +20,7 @@ import com.lhzkml.codestudio.ui.model.*
 import com.lhzkml.codestudio.oss.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -34,11 +35,11 @@ import android.net.Uri
 @Composable
 internal fun App() {
     val context = LocalContext.current
-    val factory = ViewModelFactory(context)
+    val appContainer = remember { AppContainer(context) }
     
-    val navigationViewModel: NavigationViewModel = viewModel(factory = factory)
-    val chatViewModel: ChatViewModel = viewModel(factory = factory)
-    val settingsViewModel: SettingsViewModel = viewModel(factory = factory)
+    val navigationViewModel: NavigationViewModel = viewModel { appContainer.createNavigationViewModel() }
+    val chatViewModel: ChatViewModel = viewModel { appContainer.createChatViewModel() }
+    val settingsViewModel: SettingsViewModel = viewModel { appContainer.createSettingsViewModel() }
     
     val navigationState by navigationViewModel.uiState.collectAsStateWithLifecycle()
     val chatState by chatViewModel.uiState.collectAsStateWithLifecycle()

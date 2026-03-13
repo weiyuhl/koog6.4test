@@ -42,7 +42,11 @@ object StoreCodec {
     fun decodeSettings(raw: String?): StoredSettings? {
         if (raw.isNullOrBlank()) return null
         val parts = raw.split("\t")
-        // 兼容旧格式（9个字段包含 promptDraft）和新格式（8个字段）
+        
+        // 兼容性说明：
+        // - 旧格式（9个字段）：包含已废弃的 promptDraft 字段（索引5）
+        // - 新格式（8个字段）：已移除 promptDraft 字段
+        // promptDraft 功能已废弃，现在聊天草稿由 ChatViewModel 单独管理
         if (parts.size != 8 && parts.size != 9) return null
 
         return StoredSettings(
@@ -51,7 +55,7 @@ object StoreCodec {
             modelId = unescape(parts[2]),
             baseUrl = unescape(parts[3]),
             extraConfig = unescape(parts[4]),
-            // 如果是旧格式（9个字段），跳过 parts[5] promptDraft
+            // 旧格式：跳过 parts[5] (promptDraft 已废弃)
             systemPrompt = if (parts.size == 9) {
                 parts.getOrNull(6)?.let(::unescape).orEmpty()
             } else {

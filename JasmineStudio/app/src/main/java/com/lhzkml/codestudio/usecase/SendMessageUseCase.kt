@@ -3,9 +3,8 @@ package com.lhzkml.codestudio.usecase
 import com.lhzkml.codestudio.*
 import com.lhzkml.codestudio.validation.ValidationService
 
-internal class SendMessageUseCase(
+internal class SendMessageUseCase {
     private val agentRunner: AgentRunner = AgentRunner
-) {
     
     suspend fun execute(
         request: SendMessageRequest,

@@ -76,7 +76,7 @@ internal fun SettingsUiModel.toProviderUiModel(errors: FormErrors): ProviderSett
     return ProviderSettingsUiModel(
         providerDisplayName = providerDisplayName,
         modelId = modelId,
-        modelIdPlaceholder = defaultModelId,
+        modelIdPlaceholder = defaultModelId, // 使用 provider.defaultModelId
         apiKey = apiKey,
         apiKeyPlaceholder = "输入 API 密钥",
         showApiKey = requiresApiKey,
@@ -86,7 +86,7 @@ internal fun SettingsUiModel.toProviderUiModel(errors: FormErrors): ProviderSett
         showBaseUrl = requiresBaseUrl,
         extraConfig = extraConfig,
         extraFieldLabel = extraFieldLabel,
-        extraFieldPlaceholder = extraFieldDefault,
+        extraFieldPlaceholder = extraFieldDefault, // 使用 provider.extraFieldDefault
         showExtraField = requiresExtraConfig,
         errors = errors
     )

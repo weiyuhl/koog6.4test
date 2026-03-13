@@ -10,6 +10,7 @@ import com.lhzkml.codestudio.usecase.toSendMessageRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -43,9 +44,11 @@ internal class ChatViewModel(
     }
     
     private fun loadMessages() {
-        val messages = chatRepository.loadMessages()
-        nextMessageId = (messages.maxOfOrNull { it.id } ?: 0L) + 1L
-        _uiState.update { it.copy(messages = messages) }
+        viewModelScope.launch {
+            val messages = chatRepository.loadMessages()
+            nextMessageId = (messages.maxOfOrNull { it.id } ?: 0L) + 1L
+            _uiState.update { it.copy(messages = messages) }
+        }
     }
     
     private fun observeSettings() {
@@ -83,8 +86,8 @@ internal class ChatViewModel(
         _uiState.update { it.copy(prompt = "", isRunning = true) }
         
         viewModelScope.launch {
-            val settings = settingsRepository.settingsFlow.value
-            val presetId = settingsRepository.presetIdFlow.value
+            val settings = settingsRepository.settingsFlow.first()
+            val presetId = settingsRepository.presetIdFlow.first()
             val preset = Preset.fromId(presetId)
             
             val state = State(
@@ -178,6 +181,8 @@ internal class ChatViewModel(
     }
     
     private fun persistMessages() {
-        chatRepository.saveMessages(_uiState.value.messages)
+        viewModelScope.launch {
+            chatRepository.saveMessages(_uiState.value.messages)
+        }
     }
 }
