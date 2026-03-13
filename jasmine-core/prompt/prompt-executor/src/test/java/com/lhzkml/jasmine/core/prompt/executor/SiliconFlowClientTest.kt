@@ -110,4 +110,40 @@ class SiliconFlowClientTest {
 
         assertTrue(chunks.size >= 2)
     }
+
+    @Test
+    fun `test get balance`() = runTest {
+        val mockResponse = """
+            {
+                "code": 0,
+                "message": "success",
+                "status": true,
+                "data": {
+                    "balance": "0.88",
+                    "chargeBalance": "88.00",
+                    "totalBalance": "88.88"
+                }
+            }
+        """.trimIndent()
+
+        mockServer.enqueue(MockResponse()
+            .setResponseCode(200)
+            .setBody(mockResponse)
+            .addHeader("Content-Type", "application/json"))
+
+        val balance = client.getBalance()
+
+        assertNotNull(balance)
+        assertTrue(balance.isAvailable)
+        assertEquals(1, balance.balances.size)
+        assertEquals("CNY", balance.balances[0].currency)
+        assertEquals("88.88", balance.balances[0].totalBalance)
+        assertEquals("0.88", balance.balances[0].grantedBalance)
+        assertEquals("88.00", balance.balances[0].toppedUpBalance)
+        
+        val recordedRequest = mockServer.takeRequest()
+        assertEquals("GET", recordedRequest.method)
+        assertTrue(recordedRequest.path!!.contains("/user/info"))
+        assertEquals("Bearer test-api-key", recordedRequest.getHeader("Authorization"))
+    }
 }
