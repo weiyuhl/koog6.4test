@@ -23,28 +23,30 @@ import com.lhzkml.jasmine.core.prompt.model.SamplingParams
 import com.lhzkml.jasmine.core.prompt.model.ToolCall
 import com.lhzkml.jasmine.core.prompt.model.ToolDescriptor
 import com.lhzkml.jasmine.core.prompt.model.Usage
-import io.ktor.client.*
-import io.ktor.client.call.*
-import io.ktor.client.engine.okhttp.*
-import io.ktor.client.plugins.*
-import io.ktor.client.plugins.contentnegotiation.*
-import io.ktor.client.request.*
-import io.ktor.client.statement.*
-import io.ktor.http.*
-import io.ktor.serialization.kotlinx.json.*
-import io.ktor.utils.io.*
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
+import java.io.IOException
 import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
+import java.util.concurrent.TimeUnit
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 /**
  * Google Gemini 客户端
@@ -54,7 +56,7 @@ open class GeminiClient(
     protected val apiKey: String,
     protected val baseUrl: String = DEFAULT_BASE_URL,
     protected val retryConfig: RetryConfig = RetryConfig.DEFAULT,
-    httpClient: HttpClient? = null,
+    httpClient: OkHttpClient? = null,
     protected val generatePath: String = DEFAULT_GENERATE_PATH,
     protected val streamPath: String = DEFAULT_STREAM_PATH
 ) : ChatClient {
@@ -72,16 +74,12 @@ open class GeminiClient(
         encodeDefaults = false
     }
 
-    internal val httpClient: HttpClient = httpClient ?: HttpClient(OkHttp) {
-        install(ContentNegotiation) {
-            json(this@GeminiClient.json)
-        }
-        install(HttpTimeout) {
-            requestTimeoutMillis = retryConfig.requestTimeoutMs
-            connectTimeoutMillis = retryConfig.connectTimeoutMs
-            socketTimeoutMillis = retryConfig.socketTimeoutMs
-        }
-    }
+    internal val httpClient: OkHttpClient = httpClient ?: OkHttpClient.Builder()
+        .connectTimeout(retryConfig.connectTimeoutMs, TimeUnit.MILLISECONDS)
+        .readTimeout(retryConfig.socketTimeoutMs, TimeUnit.MILLISECONDS)
+        .writeTimeout(retryConfig.socketTimeoutMs, TimeUnit.MILLISECONDS)
+        .callTimeout(retryConfig.requestTimeoutMs, TimeUnit.MILLISECONDS)
+        .build()
 
     // ========== 消息转换 ==========
 
@@ -232,61 +230,88 @@ open class GeminiClient(
                     tools = convertTools(tools)
                 )
 
-                val statement = httpClient.preparePost(
-                    "${baseUrl}${streamPath.replace("{model}", model)}"
-                ) {
-                    contentType(ContentType.Application.Json)
-                    parameter("key", apiKey)
-                    parameter("alt", "sse")
-                    setBody(request)
-                }
+                val requestBody = json.encodeToString(request)
+                    .toRequestBody("application/json".toMediaType())
+                
+                val url = "${baseUrl}${streamPath.replace("{model}", model)}?key=${apiKey}&alt=sse"
+                val httpRequest = Request.Builder()
+                    .url(url)
+                    .addHeader("Content-Type", "application/json")
+                    .post(requestBody)
+                    .build()
 
                 val fullContent = StringBuilder()
                 var lastUsage: Usage? = null
                 var lastFinishReason: String? = null
                 val toolCalls = mutableListOf<ToolCall>()
 
-                statement.execute { response ->
-                    if (!response.status.isSuccess()) {
-                        val body = try { response.bodyAsText() } catch (_: Exception) { null }
-                        throw ChatClientException.fromStatusCode(provider.name, response.status.value, body)
-                    }
-
-                    val sseChannel = Channel<String>(Channel.BUFFERED)
-
-                    coroutineScope {
-                        launch { SseEventParser.parse(response.bodyAsChannel(), sseChannel) }
-
-                        for (data in sseChannel) {
-                            try {
-                                val chunk = json.decodeFromString<GeminiResponse>(data)
-                                chunk.usageMetadata?.let {
-                                    lastUsage = Usage(
-                                        promptTokens = it.promptTokenCount,
-                                        completionTokens = it.candidatesTokenCount,
-                                        totalTokens = it.totalTokenCount
-                                    )
-                                }
-                                val firstCandidate = chunk.candidates?.firstOrNull()
-                                if (firstCandidate?.finishReason != null) {
-                                    lastFinishReason = firstCandidate.finishReason
-                                }
-                                firstCandidate?.content?.parts?.forEach { part ->
-                                    val text = part.text
-                                    if (!text.isNullOrEmpty()) {
-                                        fullContent.append(text)
-                                        onChunk(text)
-                                    }
-                                    part.functionCall?.let { fc ->
-                                        toolCalls.add(ToolCall(
-                                            id = "gemini_${fc.name}_${System.nanoTime()}",
-                                            name = fc.name,
-                                            arguments = fc.args?.toString() ?: "{}"
-                                        ))
-                                    }
-                                }
-                            } catch (_: Exception) { }
+                withContext(Dispatchers.IO) {
+                    suspendCancellableCoroutine<Unit> { continuation ->
+                        val call = httpClient.newCall(httpRequest)
+                        
+                        continuation.invokeOnCancellation {
+                            call.cancel()
                         }
+                        
+                        call.enqueue(object : Callback {
+                            override fun onFailure(call: Call, e: IOException) {
+                                continuation.resumeWithException(e)
+                            }
+
+                            override fun onResponse(call: Call, response: Response) {
+                                try {
+                                    if (!response.isSuccessful) {
+                                        val body = response.body?.string()
+                                        continuation.resumeWithException(
+                                            ChatClientException.fromStatusCode(provider.name, response.code, body)
+                                        )
+                                        return
+                                    }
+
+                                    response.body?.charStream()?.buffered()?.use { reader ->
+                                        reader.lineSequence().forEach { line ->
+                                            if (line.startsWith("data: ")) {
+                                                val data = line.substring(6).trim()
+                                                if (data.isEmpty()) return@forEach
+                                                
+                                                try {
+                                                    val chunk = json.decodeFromString<GeminiResponse>(data)
+                                                    chunk.usageMetadata?.let {
+                                                        lastUsage = Usage(
+                                                            promptTokens = it.promptTokenCount,
+                                                            completionTokens = it.candidatesTokenCount,
+                                                            totalTokens = it.totalTokenCount
+                                                        )
+                                                    }
+                                                    val firstCandidate = chunk.candidates?.firstOrNull()
+                                                    if (firstCandidate?.finishReason != null) {
+                                                        lastFinishReason = firstCandidate.finishReason
+                                                    }
+                                                    firstCandidate?.content?.parts?.forEach { part ->
+                                                        val text = part.text
+                                                        if (!text.isNullOrEmpty()) {
+                                                            fullContent.append(text)
+                                                            kotlinx.coroutines.runBlocking { onChunk(text) }
+                                                        }
+                                                        part.functionCall?.let { fc ->
+                                                            toolCalls.add(ToolCall(
+                                                                id = "gemini_${fc.name}_${System.nanoTime()}",
+                                                                name = fc.name,
+                                                                arguments = fc.args?.toString() ?: "{}"
+                                                            ))
+                                                        }
+                                                    }
+                                                } catch (_: Exception) { }
+                                            }
+                                        }
+                                    }
+                                    
+                                    continuation.resume(Unit)
+                                } catch (e: Exception) {
+                                    continuation.resumeWithException(e)
+                                }
+                            }
+                        })
                     }
                 }
 
@@ -306,8 +331,6 @@ open class GeminiClient(
                 throw ChatClientException(provider.name, "连接失败，请检查网络", ErrorType.NETWORK, cause = e)
             } catch (e: SocketTimeoutException) {
                 throw ChatClientException(provider.name, "请求超时，请稍后重试", ErrorType.NETWORK, cause = e)
-            } catch (e: HttpRequestTimeoutException) {
-                throw ChatClientException(provider.name, "请求超时，请稍后重试", ErrorType.NETWORK, cause = e)
             } catch (e: Exception) {
                 throw ChatClientException(provider.name, "流式请求失败: ${e.message}", ErrorType.UNKNOWN, cause = e)
             }
@@ -317,34 +340,40 @@ open class GeminiClient(
     override suspend fun listModels(): List<ModelInfo> {
         return executeWithRetry(retryConfig) {
             try {
-                val response: HttpResponse = httpClient.get("${baseUrl}/v1beta/models") {
-                    parameter("key", apiKey)
-                    parameter("pageSize", 1000)
-                }
+                val url = "${baseUrl}/v1beta/models?key=${apiKey}&pageSize=1000"
+                val httpRequest = Request.Builder()
+                    .url(url)
+                    .get()
+                    .build()
 
-                if (!response.status.isSuccess()) {
-                    val body = try { response.bodyAsText() } catch (_: Exception) { null }
-                    throw ChatClientException.fromStatusCode(provider.name, response.status.value, body)
-                }
-
-                val geminiResponse: com.lhzkml.jasmine.core.prompt.model.GeminiModelListResponse = response.body()
-                geminiResponse.models
-                    .filter { it.supportedGenerationMethods.contains("generateContent") }
-                    .map { model ->
-                        val id = model.name.removePrefix("models/")
-                        ModelInfo(
-                            id = id,
-                            displayName = model.displayName.ifEmpty { null },
-                            contextLength = model.inputTokenLimit,
-                            maxOutputTokens = model.outputTokenLimit,
-                            supportsThinking = model.thinking,
-                            temperature = model.temperature,
-                            maxTemperature = model.maxTemperature,
-                            topP = model.topP,
-                            topK = model.topK,
-                            description = model.description.ifEmpty { null }
-                        )
+                withContext(Dispatchers.IO) {
+                    val response = httpClient.newCall(httpRequest).execute()
+                    
+                    if (!response.isSuccessful) {
+                        val body = response.body?.string()
+                        throw ChatClientException.fromStatusCode(provider.name, response.code, body)
                     }
+                    
+                    val body = response.body?.string() ?: return@withContext emptyList()
+                    val geminiResponse = json.decodeFromString<com.lhzkml.jasmine.core.prompt.model.GeminiModelListResponse>(body)
+                    geminiResponse.models
+                        .filter { it.supportedGenerationMethods.contains("generateContent") }
+                        .map { model ->
+                            val id = model.name.removePrefix("models/")
+                            ModelInfo(
+                                id = id,
+                                displayName = model.displayName.ifEmpty { null },
+                                contextLength = model.inputTokenLimit,
+                                maxOutputTokens = model.outputTokenLimit,
+                                supportsThinking = model.thinking,
+                                temperature = model.temperature,
+                                maxTemperature = model.maxTemperature,
+                                topP = model.topP,
+                                topK = model.topK,
+                                description = model.description.ifEmpty { null }
+                            )
+                        }
+                }
             } catch (e: ChatClientException) {
                 throw e
             } catch (e: Exception) {
@@ -354,6 +383,7 @@ open class GeminiClient(
     }
 
     override fun close() {
-        httpClient.close()
+        httpClient.dispatcher.executorService.shutdown()
+        httpClient.connectionPool.evictAll()
     }
 }

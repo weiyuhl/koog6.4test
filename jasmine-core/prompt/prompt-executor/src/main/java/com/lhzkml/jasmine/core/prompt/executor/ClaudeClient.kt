@@ -22,30 +22,32 @@ import com.lhzkml.jasmine.core.prompt.model.SamplingParams
 import com.lhzkml.jasmine.core.prompt.model.ToolCall
 import com.lhzkml.jasmine.core.prompt.model.ToolDescriptor
 import com.lhzkml.jasmine.core.prompt.model.Usage
-import io.ktor.client.*
-import io.ktor.client.call.*
-import io.ktor.client.engine.okhttp.*
-import io.ktor.client.plugins.*
-import io.ktor.client.plugins.contentnegotiation.*
-import io.ktor.client.request.*
-import io.ktor.client.statement.*
-import io.ktor.http.*
-import io.ktor.serialization.kotlinx.json.*
-import io.ktor.utils.io.*
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
+import java.io.IOException
 import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
+import java.util.concurrent.TimeUnit
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 /**
  * Anthropic Claude 客户端
@@ -55,7 +57,7 @@ open class ClaudeClient(
     protected val apiKey: String,
     protected val baseUrl: String = DEFAULT_BASE_URL,
     protected val retryConfig: RetryConfig = RetryConfig.DEFAULT,
-    httpClient: HttpClient? = null
+    httpClient: OkHttpClient? = null
 ) : ThinkingChatClient {
 
     companion object {
@@ -70,16 +72,12 @@ open class ClaudeClient(
         encodeDefaults = true
     }
 
-    internal val httpClient: HttpClient = httpClient ?: HttpClient(OkHttp) {
-        install(ContentNegotiation) {
-            json(this@ClaudeClient.json)
-        }
-        install(HttpTimeout) {
-            requestTimeoutMillis = retryConfig.requestTimeoutMs
-            connectTimeoutMillis = retryConfig.connectTimeoutMs
-            socketTimeoutMillis = retryConfig.socketTimeoutMs
-        }
-    }
+    internal val httpClient: OkHttpClient = httpClient ?: OkHttpClient.Builder()
+        .connectTimeout(retryConfig.connectTimeoutMs, TimeUnit.MILLISECONDS)
+        .readTimeout(retryConfig.socketTimeoutMs, TimeUnit.MILLISECONDS)
+        .writeTimeout(retryConfig.socketTimeoutMs, TimeUnit.MILLISECONDS)
+        .callTimeout(retryConfig.requestTimeoutMs, TimeUnit.MILLISECONDS)
+        .build()
 
     // ========== 消息转换 ==========
 
@@ -211,12 +209,16 @@ open class ClaudeClient(
                     tools = convertTools(tools)
                 )
 
-                val statement = httpClient.preparePost("${baseUrl}/v1/messages") {
-                    contentType(ContentType.Application.Json)
-                    header("x-api-key", apiKey)
-                    header("anthropic-version", ANTHROPIC_VERSION)
-                    setBody(request)
-                }
+                val requestBody = json.encodeToString(request)
+                    .toRequestBody("application/json".toMediaType())
+                
+                val httpRequest = Request.Builder()
+                    .url("${baseUrl}/v1/messages")
+                    .addHeader("Content-Type", "application/json")
+                    .addHeader("x-api-key", apiKey)
+                    .addHeader("anthropic-version", ANTHROPIC_VERSION)
+                    .post(requestBody)
+                    .build()
 
                 val fullContent = StringBuilder()
                 var inputTokens = 0
@@ -227,73 +229,99 @@ open class ClaudeClient(
                 var currentBlockType = ""
                 val thinkingContent = StringBuilder()
 
-                statement.execute { response ->
-                    if (!response.status.isSuccess()) {
-                        val body = try { response.bodyAsText() } catch (_: Exception) { null }
-                        throw ChatClientException.fromStatusCode(provider.name, response.status.value, body)
-                    }
+                withContext(Dispatchers.IO) {
+                    suspendCancellableCoroutine<Unit> { continuation ->
+                        val call = httpClient.newCall(httpRequest)
+                        
+                        continuation.invokeOnCancellation {
+                            call.cancel()
+                        }
+                        
+                        call.enqueue(object : Callback {
+                            override fun onFailure(call: Call, e: IOException) {
+                                continuation.resumeWithException(e)
+                            }
 
-                    val sseChannel = Channel<String>(Channel.BUFFERED)
-
-                    coroutineScope {
-                        launch { SseEventParser.parse(response.bodyAsChannel(), sseChannel) }
-
-                        for (data in sseChannel) {
-                            try {
-                                val event = json.decodeFromString<ClaudeStreamEvent>(data)
-                                when (event.type) {
-                                    "message_start" -> {
-                                        event.message?.usage?.let { inputTokens = it.inputTokens }
+                            override fun onResponse(call: Call, response: Response) {
+                                try {
+                                    if (!response.isSuccessful) {
+                                        val body = response.body?.string()
+                                        continuation.resumeWithException(
+                                            ChatClientException.fromStatusCode(provider.name, response.code, body)
+                                        )
+                                        return
                                     }
-                                    "content_block_start" -> {
-                                        val idx = event.index ?: 0
-                                        currentBlockIndex = idx
-                                        val block = event.contentBlock
-                                        currentBlockType = block?.type ?: "text"
-                                        if (currentBlockType == "tool_use") {
-                                            toolCallAccumulator[idx] = Triple(
-                                                block?.id ?: "",
-                                                block?.name ?: "",
-                                                StringBuilder()
-                                            )
-                                        }
-                                    }
-                                    "content_block_delta" -> {
-                                        val delta = event.delta
-                                        if (delta != null) {
-                                            when (delta.type) {
-                                                "text_delta" -> {
-                                                    val text = delta.text
-                                                    if (!text.isNullOrEmpty()) {
-                                                        fullContent.append(text)
-                                                        onChunk(text)
-                                                    }
-                                                }
-                                                "thinking_delta" -> {
-                                                    val text = delta.thinking
-                                                    if (!text.isNullOrEmpty()) {
-                                                        thinkingContent.append(text)
-                                                        onThinking(text)
-                                                    }
-                                                }
-                                                "input_json_delta" -> {
-                                                    val partial = delta.partialJson
-                                                    if (!partial.isNullOrEmpty()) {
-                                                        toolCallAccumulator[currentBlockIndex]?.let { (_, _, args) ->
-                                                            args.append(partial)
+
+                                    response.body?.charStream()?.buffered()?.use { reader ->
+                                        reader.lineSequence().forEach { line ->
+                                            if (line.startsWith("data: ")) {
+                                                val data = line.substring(6).trim()
+                                                if (data.isEmpty()) return@forEach
+                                                
+                                                try {
+                                                    val event = json.decodeFromString<ClaudeStreamEvent>(data)
+                                                    when (event.type) {
+                                                        "message_start" -> {
+                                                            event.message?.usage?.let { inputTokens = it.inputTokens }
+                                                        }
+                                                        "content_block_start" -> {
+                                                            val idx = event.index ?: 0
+                                                            currentBlockIndex = idx
+                                                            val block = event.contentBlock
+                                                            currentBlockType = block?.type ?: "text"
+                                                            if (currentBlockType == "tool_use") {
+                                                                toolCallAccumulator[idx] = Triple(
+                                                                    block?.id ?: "",
+                                                                    block?.name ?: "",
+                                                                    StringBuilder()
+                                                                )
+                                                            }
+                                                        }
+                                                        "content_block_delta" -> {
+                                                            val delta = event.delta
+                                                            if (delta != null) {
+                                                                when (delta.type) {
+                                                                    "text_delta" -> {
+                                                                        val text = delta.text
+                                                                        if (!text.isNullOrEmpty()) {
+                                                                            fullContent.append(text)
+                                                                            kotlinx.coroutines.runBlocking { onChunk(text) }
+                                                                        }
+                                                                    }
+                                                                    "thinking_delta" -> {
+                                                                        val text = delta.thinking
+                                                                        if (!text.isNullOrEmpty()) {
+                                                                            thinkingContent.append(text)
+                                                                            kotlinx.coroutines.runBlocking { onThinking(text) }
+                                                                        }
+                                                                    }
+                                                                    "input_json_delta" -> {
+                                                                        val partial = delta.partialJson
+                                                                        if (!partial.isNullOrEmpty()) {
+                                                                            toolCallAccumulator[currentBlockIndex]?.let { (_, _, args) ->
+                                                                                args.append(partial)
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                        "message_delta" -> {
+                                                            event.usage?.let { outputTokens = it.outputTokens }
+                                                            event.delta?.stopReason?.let { stopReason = it }
                                                         }
                                                     }
-                                                }
+                                                } catch (_: Exception) { }
                                             }
                                         }
                                     }
-                                    "message_delta" -> {
-                                        event.usage?.let { outputTokens = it.outputTokens }
-                                        event.delta?.stopReason?.let { stopReason = it }
-                                    }
+                                    
+                                    continuation.resume(Unit)
+                                } catch (e: Exception) {
+                                    continuation.resumeWithException(e)
                                 }
-                            } catch (_: Exception) { }
-                        }
+                            }
+                        })
                     }
                 }
 
@@ -326,8 +354,6 @@ open class ClaudeClient(
                 throw ChatClientException(provider.name, "连接失败，请检查网络", ErrorType.NETWORK, cause = e)
             } catch (e: SocketTimeoutException) {
                 throw ChatClientException(provider.name, "请求超时，请稍后重试", ErrorType.NETWORK, cause = e)
-            } catch (e: HttpRequestTimeoutException) {
-                throw ChatClientException(provider.name, "请求超时，请稍后重试", ErrorType.NETWORK, cause = e)
             } catch (e: Exception) {
                 throw ChatClientException(provider.name, "流式请求失败: ${e.message}", ErrorType.UNKNOWN, cause = e)
             }
@@ -337,22 +363,28 @@ open class ClaudeClient(
     override suspend fun listModels(): List<ModelInfo> {
         return executeWithRetry(retryConfig) {
             try {
-                val response: HttpResponse = httpClient.get("${baseUrl}/v1/models") {
-                    header("x-api-key", apiKey)
-                    header("anthropic-version", ANTHROPIC_VERSION)
-                    parameter("limit", 1000)
-                }
+                val httpRequest = Request.Builder()
+                    .url("${baseUrl}/v1/models?limit=1000")
+                    .addHeader("x-api-key", apiKey)
+                    .addHeader("anthropic-version", ANTHROPIC_VERSION)
+                    .get()
+                    .build()
 
-                if (!response.status.isSuccess()) {
-                    val body = try { response.bodyAsText() } catch (_: Exception) { null }
-                    throw ChatClientException.fromStatusCode(provider.name, response.status.value, body)
+                withContext(Dispatchers.IO) {
+                    val response = httpClient.newCall(httpRequest).execute()
+                    
+                    if (!response.isSuccessful) {
+                        val body = response.body?.string()
+                        throw ChatClientException.fromStatusCode(provider.name, response.code, body)
+                    }
+                    
+                    val body = response.body?.string() ?: return@withContext emptyList()
+                    val claudeResponse = json.decodeFromString<com.lhzkml.jasmine.core.prompt.model.ClaudeModelListResponse>(body)
+                    claudeResponse.data.map { ModelInfo(
+                        id = it.id,
+                        displayName = it.displayName.ifEmpty { null }
+                    ) }
                 }
-
-                val claudeResponse: com.lhzkml.jasmine.core.prompt.model.ClaudeModelListResponse = response.body()
-                claudeResponse.data.map { ModelInfo(
-                    id = it.id,
-                    displayName = it.displayName.ifEmpty { null }
-                ) }
             } catch (e: ChatClientException) {
                 throw e
             } catch (e: Exception) {
@@ -362,6 +394,7 @@ open class ClaudeClient(
     }
 
     override fun close() {
-        httpClient.close()
+        httpClient.dispatcher.executorService.shutdown()
+        httpClient.connectionPool.evictAll()
     }
 }
