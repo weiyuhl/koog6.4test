@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lhzkml.codestudio.*
 import com.lhzkml.codestudio.repository.SettingsRepository
+import com.lhzkml.codestudio.repository.StoredSettings
 import com.lhzkml.codestudio.ui.model.SettingsUiModel
 import com.lhzkml.codestudio.ui.model.toUiModel
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -24,6 +25,8 @@ internal data class SettingsUiState(
     val systemPrompt: String = "",
     val temperature: String = "0.2",
     val maxIterations: String = "50",
+    val balanceInfo: com.lhzkml.codestudio.ui.model.BalanceDisplayInfo? = null,
+    val isCheckingBalance: Boolean = false,
     val formErrors: FormErrors = FormErrors()
 )
 
@@ -37,6 +40,7 @@ internal sealed interface SettingsEvent {
     data class UpdateSystemPrompt(val value: String) : SettingsEvent
     data class UpdateTemperature(val value: String) : SettingsEvent
     data class UpdateMaxIterations(val value: String) : SettingsEvent
+    data object CheckBalance : SettingsEvent
 }
 
 @HiltViewModel
@@ -92,26 +96,24 @@ internal class SettingsViewModel @Inject constructor(
             is SettingsEvent.UpdateSystemPrompt -> updateSystemPrompt(event.value)
             is SettingsEvent.UpdateTemperature -> updateTemperature(event.value)
             is SettingsEvent.UpdateMaxIterations -> updateMaxIterations(event.value)
+            is SettingsEvent.CheckBalance -> checkBalance()
         }
     }
     
     private fun updateProvider(provider: Provider) {
-        val currentState = _uiState.value
-        // 只有当切换到不同的供应商时才更新默认值
-        // 如果用户已经输入了模型 ID，保留用户的输入
-        val shouldUseDefaults = currentState.provider != provider
-        
-        _uiState.update {
-            it.copy(
-                provider = provider,
-                // 只在切换供应商时使用默认值，否则保留用户输入
-                modelId = if (shouldUseDefaults) provider.defaultModelId else it.modelId,
-                baseUrl = if (shouldUseDefaults) provider.defaultBaseUrl else it.baseUrl,
-                extraConfig = if (shouldUseDefaults) provider.extraFieldDefault else it.extraConfig,
-                formErrors = FormErrors()
-            )
+        viewModelScope.launch {
+            // 切换供应商
+            settingsRepository.updateCurrentProvider(provider.name)
+            
+            // 清空余额信息
+            _uiState.update {
+                it.copy(
+                    provider = provider,
+                    balanceInfo = null,
+                    formErrors = FormErrors()
+                )
+            }
         }
-        persistSettings()
     }
     
     private fun updateApiKey(value: String) {
@@ -217,6 +219,103 @@ internal class SettingsViewModel @Inject constructor(
                     maxIterations = state.maxIterations
                 )
             )
+        }
+    }
+    
+    private fun checkBalance() {
+        viewModelScope.launch {
+            val state = _uiState.value
+            
+            // 检查 API Key 是否为空
+            if (state.apiKey.isBlank()) {
+                _uiState.update { 
+                    it.copy(
+                        balanceInfo = com.lhzkml.codestudio.ui.model.BalanceDisplayInfo(
+                            isAvailable = false,
+                            currency = "",
+                            totalBalance = "",
+                            grantedBalance = null,
+                            toppedUpBalance = null,
+                            errorMessage = "请先填写 API Key"
+                        )
+                    ) 
+                }
+                return@launch
+            }
+            
+            _uiState.update { it.copy(isCheckingBalance = true, balanceInfo = null) }
+            
+            try {
+                val chatService = com.lhzkml.codestudio.service.ChatService()
+                val client = chatService.createClient(
+                    provider = state.provider,
+                    apiKey = state.apiKey,
+                    baseUrl = state.baseUrl,
+                    extraConfig = state.extraConfig
+                )
+                
+                val result = chatService.getBalance(client)
+                val balanceInfo = when (result) {
+                    is com.lhzkml.codestudio.service.ChatService.BalanceResult.Success -> {
+                        // 解析 BalanceInfo
+                        val balance = client.getBalance()
+                        if (balance != null && balance.balances.isNotEmpty()) {
+                            val detail = balance.balances.first()
+                            com.lhzkml.codestudio.ui.model.BalanceDisplayInfo(
+                                isAvailable = balance.isAvailable,
+                                currency = detail.currency,
+                                totalBalance = detail.totalBalance,
+                                grantedBalance = detail.grantedBalance,
+                                toppedUpBalance = detail.toppedUpBalance,
+                                errorMessage = null
+                            )
+                        } else {
+                            com.lhzkml.codestudio.ui.model.BalanceDisplayInfo(
+                                isAvailable = false,
+                                currency = "",
+                                totalBalance = "",
+                                grantedBalance = null,
+                                toppedUpBalance = null,
+                                errorMessage = "无法获取余额信息"
+                            )
+                        }
+                    }
+                    is com.lhzkml.codestudio.service.ChatService.BalanceResult.Error -> 
+                        com.lhzkml.codestudio.ui.model.BalanceDisplayInfo(
+                            isAvailable = false,
+                            currency = "",
+                            totalBalance = "",
+                            grantedBalance = null,
+                            toppedUpBalance = null,
+                            errorMessage = result.message
+                        )
+                    is com.lhzkml.codestudio.service.ChatService.BalanceResult.NotSupported -> 
+                        com.lhzkml.codestudio.ui.model.BalanceDisplayInfo(
+                            isAvailable = false,
+                            currency = "",
+                            totalBalance = "",
+                            grantedBalance = null,
+                            toppedUpBalance = null,
+                            errorMessage = "该供应商不支持余额查询"
+                        )
+                }
+                
+                _uiState.update { it.copy(balanceInfo = balanceInfo, isCheckingBalance = false) }
+            } catch (e: Exception) {
+                _uiState.update { 
+                    it.copy(
+                        balanceInfo = com.lhzkml.codestudio.ui.model.BalanceDisplayInfo(
+                            isAvailable = false,
+                            currency = "",
+                            totalBalance = "",
+                            grantedBalance = null,
+                            toppedUpBalance = null,
+                            errorMessage = "查询失败: ${e.message ?: "未知错误"}"
+                        ),
+                        isCheckingBalance = false
+                    ) 
+                }
+            }
         }
     }
     

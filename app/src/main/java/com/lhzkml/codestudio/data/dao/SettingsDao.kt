@@ -5,44 +5,32 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import com.lhzkml.codestudio.data.entity.SettingsEntity
+import com.lhzkml.codestudio.data.entity.GlobalSettingsEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 internal interface SettingsDao {
     
-    @Query("SELECT * FROM settings WHERE id = 1")
-    fun getSettingsFlow(): Flow<SettingsEntity?>
+    // 供应商配置
+    @Query("SELECT * FROM settings WHERE provider_name = :providerName")
+    fun getProviderSettingsFlow(providerName: String): Flow<SettingsEntity?>
     
-    @Query("SELECT * FROM settings WHERE id = 1")
-    suspend fun getSettings(): SettingsEntity?
+    @Query("SELECT * FROM settings WHERE provider_name = :providerName")
+    suspend fun getProviderSettings(providerName: String): SettingsEntity?
     
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertOrUpdate(settings: SettingsEntity)
+    suspend fun insertProviderSettings(settings: SettingsEntity)
     
-    @Query("UPDATE settings SET provider_name = :providerName WHERE id = 1")
-    suspend fun updateProvider(providerName: String)
+    @Query("SELECT * FROM settings")
+    suspend fun getAllProviderSettings(): List<SettingsEntity>
     
-    @Query("UPDATE settings SET api_key = :apiKey WHERE id = 1")
-    suspend fun updateApiKey(apiKey: String)
+    // 全局设置
+    @Query("SELECT * FROM global_settings WHERE id = 1")
+    fun getGlobalSettingsFlow(): Flow<GlobalSettingsEntity?>
     
-    @Query("UPDATE settings SET model_id = :modelId WHERE id = 1")
-    suspend fun updateModelId(modelId: String)
+    @Query("SELECT * FROM global_settings WHERE id = 1")
+    suspend fun getGlobalSettings(): GlobalSettingsEntity?
     
-    @Query("UPDATE settings SET base_url = :baseUrl WHERE id = 1")
-    suspend fun updateBaseUrl(baseUrl: String)
-    
-    @Query("UPDATE settings SET extra_config = :extraConfig WHERE id = 1")
-    suspend fun updateExtraConfig(extraConfig: String)
-    
-    @Query("UPDATE settings SET system_prompt = :systemPrompt WHERE id = 1")
-    suspend fun updateSystemPrompt(systemPrompt: String)
-    
-    @Query("UPDATE settings SET temperature = :temperature WHERE id = 1")
-    suspend fun updateTemperature(temperature: String)
-    
-    @Query("UPDATE settings SET max_iterations = :maxIterations WHERE id = 1")
-    suspend fun updateMaxIterations(maxIterations: String)
-    
-    @Query("UPDATE settings SET runtime_preset_id = :presetId WHERE id = 1")
-    suspend fun updatePresetId(presetId: String)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertGlobalSettings(settings: GlobalSettingsEntity)
 }

@@ -43,7 +43,20 @@ internal data class ProviderSettingsUiModel(
     val extraFieldLabel: String?,
     val extraFieldPlaceholder: String,
     val showExtraField: Boolean,
+    val supportsBalanceCheck: Boolean,
+    val balanceInfo: BalanceDisplayInfo?,
+    val isCheckingBalance: Boolean,
     val errors: FormErrors
+)
+
+// 余额显示信息
+internal data class BalanceDisplayInfo(
+    val isAvailable: Boolean,
+    val currency: String,
+    val totalBalance: String,
+    val grantedBalance: String?,
+    val toppedUpBalance: String?,
+    val errorMessage: String?
 )
 
 // Runtime 设置页 UI Model
@@ -72,11 +85,14 @@ internal fun SettingsUiModel.toHomeUiModel(errors: FormErrors): SettingsHomeUiMo
     )
 }
 
-internal fun SettingsUiModel.toProviderUiModel(errors: FormErrors): ProviderSettingsUiModel {
+internal fun SettingsUiModel.toProviderUiModel(errors: FormErrors, balanceInfo: BalanceDisplayInfo? = null, isCheckingBalance: Boolean = false): ProviderSettingsUiModel {
+    // 只有 DeepSeek 和 SiliconFlow 支持余额查询
+    val supportsBalance = providerDisplayName in listOf("DeepSeek", "硅基流动")
+    
     return ProviderSettingsUiModel(
         providerDisplayName = providerDisplayName,
         modelId = modelId,
-        modelIdPlaceholder = defaultModelId, // 使用 provider.defaultModelId
+        modelIdPlaceholder = defaultModelId,
         apiKey = apiKey,
         apiKeyPlaceholder = "输入 API 密钥",
         showApiKey = requiresApiKey,
@@ -86,8 +102,11 @@ internal fun SettingsUiModel.toProviderUiModel(errors: FormErrors): ProviderSett
         showBaseUrl = requiresBaseUrl,
         extraConfig = extraConfig,
         extraFieldLabel = extraFieldLabel,
-        extraFieldPlaceholder = extraFieldDefault, // 使用 provider.extraFieldDefault
+        extraFieldPlaceholder = extraFieldDefault,
         showExtraField = requiresExtraConfig,
+        supportsBalanceCheck = supportsBalance,
+        balanceInfo = balanceInfo,
+        isCheckingBalance = isCheckingBalance,
         errors = errors
     )
 }

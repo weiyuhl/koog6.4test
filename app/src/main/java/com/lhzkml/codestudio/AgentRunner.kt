@@ -1,5 +1,6 @@
 package com.lhzkml.codestudio
 
+import android.content.Context
 import com.lhzkml.codestudio.service.ChatService
 import com.lhzkml.jasmine.core.prompt.model.ChatMessage as JasmineChatMessage
 import kotlinx.coroutines.Dispatchers
@@ -10,7 +11,13 @@ import kotlinx.coroutines.withContext
  */
 object AgentRunner {
     
+    private var appContext: Context? = null
     private val chatService = ChatService()
+    
+    fun init(context: Context) {
+        appContext = context.applicationContext
+        chatService.setContext(appContext!!)
+    }
     
     /**
      * 运行 Agent（非流式）
@@ -47,10 +54,9 @@ object AgentRunner {
         val events = mutableListOf<String>()
         
         try {
-            // 记录请求信息（不包含敏感信息）
+            // 记录请求信息
             onEvent("供应商: ${request.provider.displayName}")
             onEvent("模型: ${request.modelId}")
-            onEvent("Base URL: ${request.baseUrl.ifBlank { "使用默认" }}")
             
             // 创建客户端
             onEvent("正在连接 ${request.provider.displayName}...")

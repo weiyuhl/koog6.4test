@@ -161,14 +161,20 @@ internal fun App() {
         }
 
         Route.Model.value -> {
-            val uiModel = settingsViewModel.toUiModel().toProviderUiModel(settingsState.formErrors)
+            val uiModel = settingsViewModel.toUiModel().toProviderUiModel(
+                settingsState.formErrors,
+                settingsState.balanceInfo,
+                settingsState.isCheckingBalance
+            )
             ProviderSettingsScreen(
                 uiModel = uiModel,
                 onBackClick = { navigationViewModel.onEvent(NavigationEvent.NavigateTo(Route.Home.value)) },
+                onProviderChange = { settingsViewModel.onEvent(SettingsEvent.UpdateProvider(it)) },
                 onApiKeyChanged = { settingsViewModel.onEvent(SettingsEvent.UpdateApiKey(it)) },
                 onModelIdChanged = { settingsViewModel.onEvent(SettingsEvent.UpdateModelId(it)) },
                 onBaseUrlChanged = { settingsViewModel.onEvent(SettingsEvent.UpdateBaseUrl(it)) },
                 onExtraConfigChanged = { settingsViewModel.onEvent(SettingsEvent.UpdateExtraConfig(it)) },
+                onCheckBalance = { settingsViewModel.onEvent(SettingsEvent.CheckBalance) }
             )
         }
 

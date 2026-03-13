@@ -1,5 +1,6 @@
 package com.lhzkml.codestudio.service
 
+import android.content.Context
 import com.lhzkml.codestudio.Provider
 import com.lhzkml.jasmine.core.prompt.executor.*
 import com.lhzkml.jasmine.core.prompt.llm.ChatClient
@@ -13,6 +14,12 @@ import java.util.concurrent.TimeUnit
  * 聊天服务 - 封装 jasmine-core 的供应商客户端
  */
 class ChatService {
+    
+    private var appContext: Context? = null
+    
+    fun setContext(context: Context) {
+        appContext = context
+    }
     
     private val httpClient = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
@@ -192,6 +199,30 @@ class ChatService {
             },
             finishReason = result.finishReason
         )
+    }
+    
+    /**
+     * 查询账户余额
+     */
+    suspend fun getBalance(
+        client: ChatClient
+    ): BalanceResult {
+        return try {
+            val balance = client.getBalance()
+            if (balance != null) {
+                BalanceResult.Success(balance.toDisplayString())
+            } else {
+                BalanceResult.NotSupported
+            }
+        } catch (e: Exception) {
+            BalanceResult.Error(e.message ?: "查询失败")
+        }
+    }
+    
+    sealed class BalanceResult {
+        data class Success(val balance: String) : BalanceResult()
+        data class Error(val message: String) : BalanceResult()
+        object NotSupported : BalanceResult()
     }
     
     data class ChatResult(

@@ -7,11 +7,8 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "settings")
 internal data class SettingsEntity(
     @PrimaryKey
-    @ColumnInfo(name = "id")
-    val id: Int = 1, // 只有一条设置记录
-    
     @ColumnInfo(name = "provider_name")
-    val providerName: String,
+    val providerName: String, // 使用供应商名称作为主键，每个供应商独立存储
     
     @ColumnInfo(name = "api_key")
     val apiKey: String,
@@ -24,6 +21,20 @@ internal data class SettingsEntity(
     
     @ColumnInfo(name = "extra_config")
     val extraConfig: String,
+    
+    @ColumnInfo(name = "updated_at")
+    val updatedAt: Long = System.currentTimeMillis()
+)
+
+// 全局设置（不依赖供应商）
+@Entity(tableName = "global_settings")
+internal data class GlobalSettingsEntity(
+    @PrimaryKey
+    @ColumnInfo(name = "id")
+    val id: Int = 1,
+    
+    @ColumnInfo(name = "current_provider")
+    val currentProvider: String,
     
     @ColumnInfo(name = "system_prompt")
     val systemPrompt: String,

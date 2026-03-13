@@ -7,7 +7,6 @@ import com.lhzkml.codestudio.data.SettingsDataStore
 import com.lhzkml.codestudio.repository.ChatRepository
 import com.lhzkml.codestudio.repository.ChatRepositoryImpl
 import com.lhzkml.codestudio.repository.SettingsRepository
-import com.lhzkml.codestudio.repository.SettingsRepositoryImpl
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -46,7 +45,7 @@ internal object AppModule {
     internal fun provideSettingsRepository(
         database: ChatDatabase
     ): SettingsRepository {
-        return SettingsRepositoryImpl(database.settingsDao())
+        return SettingsRepository(database.settingsDao())
     }
     
     @Provides

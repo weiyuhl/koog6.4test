@@ -8,14 +8,16 @@ import com.lhzkml.codestudio.data.dao.SettingsDao
 import com.lhzkml.codestudio.data.entity.ChatMessageEntity
 import com.lhzkml.codestudio.data.entity.ChatSessionEntity
 import com.lhzkml.codestudio.data.entity.SettingsEntity
+import com.lhzkml.codestudio.data.entity.GlobalSettingsEntity
 
 @Database(
     entities = [
         ChatSessionEntity::class,
         ChatMessageEntity::class,
-        SettingsEntity::class
+        SettingsEntity::class,
+        GlobalSettingsEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 internal abstract class ChatDatabase : RoomDatabase() {

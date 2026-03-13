@@ -1,98 +1,119 @@
 package com.lhzkml.codestudio.repository
 
 import com.lhzkml.codestudio.Provider
-import com.lhzkml.codestudio.StoredSettings
 import com.lhzkml.codestudio.data.dao.SettingsDao
+import com.lhzkml.codestudio.data.entity.GlobalSettingsEntity
 import com.lhzkml.codestudio.data.entity.SettingsEntity
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import javax.inject.Inject
+import javax.inject.Singleton
 
-internal interface SettingsRepository {
-    val settingsFlow: Flow<StoredSettings>
-    val presetIdFlow: Flow<String?>
-    suspend fun updateSettings(settings: StoredSettings)
-    suspend fun updatePresetId(presetId: String)
-}
+internal data class StoredSettings(
+    val providerName: String,
+    val apiKey: String,
+    val modelId: String,
+    val baseUrl: String,
+    val extraConfig: String,
+    val systemPrompt: String,
+    val temperature: String,
+    val maxIterations: String
+)
 
-internal class SettingsRepositoryImpl(
+@Singleton
+internal class SettingsRepository @Inject constructor(
     private val settingsDao: SettingsDao
-) : SettingsRepository {
+) {
     
-    override val settingsFlow: Flow<StoredSettings> = settingsDao.getSettingsFlow().map { entity ->
-        entity?.toStoredSettings() ?: getDefaultSettings()
+    // 当前选中的供应商配置
+    val settingsFlow: Flow<StoredSettings> = combine(
+        settingsDao.getGlobalSettingsFlow(),
+        settingsDao.getGlobalSettingsFlow().map { it?.currentProvider ?: Provider.SILICONFLOW.name }
+    ) { globalSettings, currentProvider ->
+        val providerSettings = settingsDao.getProviderSettings(currentProvider)
+        
+        StoredSettings(
+            providerName = currentProvider,
+            apiKey = providerSettings?.apiKey ?: "",
+            modelId = providerSettings?.modelId ?: getDefaultModelId(currentProvider),
+            baseUrl = providerSettings?.baseUrl ?: getDefaultBaseUrl(currentProvider),
+            extraConfig = providerSettings?.extraConfig ?: "",
+            systemPrompt = globalSettings?.systemPrompt ?: "",
+            temperature = globalSettings?.temperature ?: "0.2",
+            maxIterations = globalSettings?.maxIterations ?: "50"
+        )
     }
     
-    override val presetIdFlow: Flow<String?> = settingsDao.getSettingsFlow().map { entity ->
-        entity?.runtimePresetId
-    }
+    val presetIdFlow: Flow<String> = settingsDao.getGlobalSettingsFlow()
+        .map { it?.runtimePresetId ?: "graph-tools-sequential" }
     
-    override suspend fun updateSettings(settings: StoredSettings) {
-        val existing = settingsDao.getSettings()
-        val entity = SettingsEntity(
+    suspend fun updateSettings(settings: StoredSettings) {
+        // 更新供应商配置
+        settingsDao.insertProviderSettings(
+            SettingsEntity(
+                providerName = settings.providerName,
+                apiKey = settings.apiKey,
+                modelId = settings.modelId,
+                baseUrl = settings.baseUrl,
+                extraConfig = settings.extraConfig
+            )
+        )
+        
+        // 更新全局配置
+        val globalSettings = settingsDao.getGlobalSettings() ?: GlobalSettingsEntity(
             id = 1,
-            providerName = settings.providerName,
-            apiKey = settings.apiKey,
-            modelId = settings.modelId,
-            baseUrl = settings.baseUrl,
-            extraConfig = settings.extraConfig,
+            currentProvider = settings.providerName,
             systemPrompt = settings.systemPrompt,
             temperature = settings.temperature,
             maxIterations = settings.maxIterations,
-            runtimePresetId = existing?.runtimePresetId ?: "graph-tools-sequential",
-            updatedAt = System.currentTimeMillis()
+            runtimePresetId = "graph-tools-sequential"
         )
-        settingsDao.insertOrUpdate(entity)
-    }
-    
-    override suspend fun updatePresetId(presetId: String) {
-        // 确保有设置记录
-        val existing = settingsDao.getSettings()
-        if (existing == null) {
-            settingsDao.insertOrUpdate(getDefaultSettingsEntity().copy(runtimePresetId = presetId))
-        } else {
-            settingsDao.updatePresetId(presetId)
-        }
-    }
-    
-    private fun getDefaultSettings(): StoredSettings {
-        return StoredSettings(
-            providerName = Provider.SILICONFLOW.name,
-            apiKey = "",
-            modelId = Provider.SILICONFLOW.defaultModelId,
-            baseUrl = Provider.SILICONFLOW.defaultBaseUrl,
-            extraConfig = "",
-            systemPrompt = "",
-            temperature = "0.7",
-            maxIterations = "50"
+        
+        settingsDao.insertGlobalSettings(
+            globalSettings.copy(
+                systemPrompt = settings.systemPrompt,
+                temperature = settings.temperature,
+                maxIterations = settings.maxIterations
+            )
         )
     }
     
-    private fun getDefaultSettingsEntity(): SettingsEntity {
-        return SettingsEntity(
+    suspend fun updateCurrentProvider(providerName: String) {
+        val globalSettings = settingsDao.getGlobalSettings() ?: GlobalSettingsEntity(
             id = 1,
-            providerName = Provider.SILICONFLOW.name,
-            apiKey = "",
-            modelId = Provider.SILICONFLOW.defaultModelId,
-            baseUrl = Provider.SILICONFLOW.defaultBaseUrl,
-            extraConfig = "",
+            currentProvider = providerName,
             systemPrompt = "",
-            temperature = "0.7",
+            temperature = "0.2",
             maxIterations = "50",
-            runtimePresetId = "graph-tools-sequential",
-            updatedAt = System.currentTimeMillis()
+            runtimePresetId = "graph-tools-sequential"
+        )
+        
+        settingsDao.insertGlobalSettings(
+            globalSettings.copy(currentProvider = providerName)
         )
     }
-}
-
-private fun SettingsEntity.toStoredSettings(): StoredSettings {
-    return StoredSettings(
-        providerName = providerName,
-        apiKey = apiKey,
-        modelId = modelId,
-        baseUrl = baseUrl,
-        extraConfig = extraConfig,
-        systemPrompt = systemPrompt,
-        temperature = temperature,
-        maxIterations = maxIterations
-    )
+    
+    suspend fun updatePresetId(presetId: String) {
+        val globalSettings = settingsDao.getGlobalSettings() ?: GlobalSettingsEntity(
+            id = 1,
+            currentProvider = Provider.SILICONFLOW.name,
+            systemPrompt = "",
+            temperature = "0.2",
+            maxIterations = "50",
+            runtimePresetId = presetId
+        )
+        
+        settingsDao.insertGlobalSettings(
+            globalSettings.copy(runtimePresetId = presetId)
+        )
+    }
+    
+    private fun getDefaultModelId(providerName: String): String {
+        return Provider.entries.firstOrNull { it.name == providerName }?.defaultModelId ?: ""
+    }
+    
+    private fun getDefaultBaseUrl(providerName: String): String {
+        return Provider.entries.firstOrNull { it.name == providerName }?.defaultBaseUrl ?: ""
+    }
 }

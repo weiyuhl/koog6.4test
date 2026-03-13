@@ -1,5 +1,6 @@
 package com.lhzkml.codestudio
 
+import com.lhzkml.codestudio.repository.StoredSettings
 import com.lhzkml.codestudio.validation.ValidationService
 
 internal data class State(
