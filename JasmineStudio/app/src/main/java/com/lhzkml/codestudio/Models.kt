@@ -62,4 +62,7 @@ internal fun ChatMessage.toStoredMessage(): StoredChatMessage = StoredChatMessag
     label = label,
 )
 
+// SQLite Mappings will be handled in Repository
+
+
 

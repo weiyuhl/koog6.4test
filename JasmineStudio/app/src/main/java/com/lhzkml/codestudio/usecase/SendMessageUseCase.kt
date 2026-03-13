@@ -1,10 +1,18 @@
 package com.lhzkml.codestudio.usecase
 
 import com.lhzkml.codestudio.*
+import com.lhzkml.codestudio.repository.ChatRepository
+import com.lhzkml.codestudio.repository.SettingsRepository
 import com.lhzkml.codestudio.validation.ValidationService
+import com.lhzkml.codestudio.viewmodel.NavigationViewModel
 
-internal class SendMessageUseCase {
+internal class SendMessageUseCase(
+    private val settingsRepository: SettingsRepository,
+    private val chatRepository: ChatRepository,
+    private val navigationViewModel: NavigationViewModel // Example, check what's needed
+) {
     private val agentRunner: AgentRunner = AgentRunner
+
     
     suspend fun execute(
         request: SendMessageRequest,

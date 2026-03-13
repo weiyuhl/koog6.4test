@@ -1,6 +1,6 @@
 package com.lhzkml.codestudio.di
 
-import com.lhzkml.codestudio.data.MessagesDataStore
+import com.lhzkml.codestudio.data.ChatDatabaseHelper
 import com.lhzkml.codestudio.data.SettingsDataStore
 import com.lhzkml.codestudio.repository.ChatRepository
 import com.lhzkml.codestudio.repository.ChatRepositoryImpl
@@ -16,12 +16,12 @@ import org.koin.dsl.module
 
 val appModule = module {
     single { SettingsDataStore(androidContext()) }
-    single { MessagesDataStore(androidContext()) }
+    single { ChatDatabaseHelper(androidContext()) }
     
     single<SettingsRepository> { SettingsRepositoryImpl(get()) }
     single<ChatRepository> { ChatRepositoryImpl(get()) }
     
-    factory { SendMessageUseCase() }
+    factory { SendMessageUseCase(get(), get(), get()) }
     
     viewModel { ChatViewModel(get(), get(), get()) }
     viewModel { SettingsViewModel(get()) }
