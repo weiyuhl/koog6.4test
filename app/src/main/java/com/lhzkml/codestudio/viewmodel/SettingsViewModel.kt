@@ -96,12 +96,18 @@ internal class SettingsViewModel @Inject constructor(
     }
     
     private fun updateProvider(provider: Provider) {
+        val currentState = _uiState.value
+        // 只有当切换到不同的供应商时才更新默认值
+        // 如果用户已经输入了模型 ID，保留用户的输入
+        val shouldUseDefaults = currentState.provider != provider
+        
         _uiState.update {
             it.copy(
                 provider = provider,
-                modelId = provider.defaultModelId,
-                baseUrl = provider.defaultBaseUrl,
-                extraConfig = provider.extraFieldDefault,
+                // 只在切换供应商时使用默认值，否则保留用户输入
+                modelId = if (shouldUseDefaults) provider.defaultModelId else it.modelId,
+                baseUrl = if (shouldUseDefaults) provider.defaultBaseUrl else it.baseUrl,
+                extraConfig = if (shouldUseDefaults) provider.extraFieldDefault else it.extraConfig,
                 formErrors = FormErrors()
             )
         }

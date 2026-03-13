@@ -47,6 +47,11 @@ object AgentRunner {
         val events = mutableListOf<String>()
         
         try {
+            // 记录请求信息（不包含敏感信息）
+            onEvent("供应商: ${request.provider.displayName}")
+            onEvent("模型: ${request.modelId}")
+            onEvent("Base URL: ${request.baseUrl.ifBlank { "使用默认" }}")
+            
             // 创建客户端
             onEvent("正在连接 ${request.provider.displayName}...")
             val client = chatService.createClient(
@@ -93,9 +98,32 @@ object AgentRunner {
                 runtimeSnapshot = createRuntimeSnapshot(request, result)
             )
         } catch (e: Exception) {
-            val errorMessage = "执行失败: ${e.message ?: e::class.simpleName}"
+            // 详细的错误信息
+            val errorMessage = when {
+                e.message?.contains("401") == true || e.message?.contains("Unauthorized") == true -> 
+                    "认证失败: API Key 无效或已过期"
+                e.message?.contains("403") == true || e.message?.contains("Forbidden") == true -> 
+                    "无权访问: 请检查 API Key 权限或账户余额"
+                e.message?.contains("404") == true -> 
+                    "资源不存在: 请检查 Base URL 和模型 ID 是否正确"
+                e.message?.contains("429") == true -> 
+                    "请求过于频繁: 请稍后再试"
+                e.message?.contains("500") == true || e.message?.contains("502") == true || e.message?.contains("503") == true -> 
+                    "服务器错误: ${request.provider.displayName} 服务暂时不可用"
+                e.message?.contains("timeout") == true || e.message?.contains("timed out") == true -> 
+                    "请求超时: 网络连接超时，请检查网络或稍后重试"
+                e.message?.contains("Unable to resolve host") == true || e.message?.contains("UnknownHost") == true -> 
+                    "网络错误: 无法连接到服务器，请检查网络连接"
+                else -> "执行失败: ${e.message ?: e::class.simpleName}"
+            }
+            
             events.add(errorMessage)
             onEvent(errorMessage)
+            
+            // 添加调试信息
+            if (e.message != null) {
+                events.add("详细错误: ${e.message}")
+            }
             
             ExecutionResult(
                 answer = "",

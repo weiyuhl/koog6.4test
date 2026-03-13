@@ -36,15 +36,17 @@ internal object AppModule {
             context,
             ChatDatabase::class.java,
             "chat_studio.db"
-        ).build()
+        )
+        .fallbackToDestructiveMigration() // 简单起见，使用破坏性迁移
+        .build()
     }
     
     @Provides
     @Singleton
     internal fun provideSettingsRepository(
-        settingsDataStore: SettingsDataStore
+        database: ChatDatabase
     ): SettingsRepository {
-        return SettingsRepositoryImpl(settingsDataStore)
+        return SettingsRepositoryImpl(database.settingsDao())
     }
     
     @Provides
