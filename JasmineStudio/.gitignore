@@ -13,3 +13,7 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# 签名密钥库（不要提交到版本控制）
+*.jks
+*.keystore
