@@ -26,3 +26,8 @@ dependencyResolutionManagement {
 
 rootProject.name = "My Application"
 include(":app")
+
+// Jasmine Core - Prompt 模块（供应商客户端）
+include(":jasmine-core:prompt:prompt-model")
+include(":jasmine-core:prompt:prompt-llm")
+include(":jasmine-core:prompt:prompt-executor")
