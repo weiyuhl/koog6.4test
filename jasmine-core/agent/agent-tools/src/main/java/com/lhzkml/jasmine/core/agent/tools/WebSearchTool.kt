@@ -3,23 +3,20 @@ package com.lhzkml.jasmine.core.agent.tools
 import com.lhzkml.jasmine.core.prompt.model.ToolDescriptor
 import com.lhzkml.jasmine.core.prompt.model.ToolParameterDescriptor
 import com.lhzkml.jasmine.core.prompt.model.ToolParameterType
-import io.ktor.client.HttpClient
-import io.ktor.client.call.body
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.plugins.defaultRequest
-import io.ktor.client.request.header
-import io.ktor.client.request.post
-import io.ktor.client.request.setBody
-import io.ktor.http.ContentType
-import io.ktor.http.URLBuilder
-import io.ktor.http.contentType
-import io.ktor.serialization.kotlinx.json.json
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNamingStrategy
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import java.net.URLEncoder
 
 /**
  * 网络搜索工具集
@@ -55,14 +52,7 @@ class WebSearchTool(
     @Serializable
     data class BrightDataRequest(val zone: String, val url: String, val format: String, val dataFormat: String? = null)
 
-    private val httpClient = HttpClient {
-        defaultRequest {
-            url("https://api.brightdata.com/request")
-            contentType(ContentType.Application.Json)
-            header("Authorization", "Bearer $brightDataKey")
-        }
-        install(ContentNegotiation) { json(jsonParser) }
-    }
+    private val httpClient = OkHttpClient.Builder().build()
 
     val search = object : Tool() {
         override val descriptor = ToolDescriptor(
@@ -81,15 +71,29 @@ class WebSearchTool(
         override suspend fun execute(arguments: String): String {
             val obj = Json.parseToJsonElement(arguments).jsonObject
             val query = obj["query"]?.jsonPrimitive?.content ?: return "Error: Missing parameter 'query'"
-            val searchUrl = URLBuilder("https://www.google.com/search").apply {
-                parameters.append("brd_json", "1"); parameters.append("q", query)
-            }.buildString()
+            val encodedQuery = URLEncoder.encode(query, "UTF-8")
+            val searchUrl = "https://www.google.com/search?brd_json=1&q=$encodedQuery"
             val request = BrightDataRequest(zone = serpZone, url = searchUrl, format = "raw")
             return try {
-                val response = httpClient.post { setBody(request) }
-                val result = response.body<WebSearchResult>()
-                result.organic.joinToString("\n\n") { "[${it.rank}] ${it.title}\n${it.link}\n${it.description}" }
-                    .ifEmpty { "No results found." }
+                val requestBody = jsonParser.encodeToString(request)
+                    .toRequestBody("application/json".toMediaType())
+                
+                val httpRequest = Request.Builder()
+                    .url("https://api.brightdata.com/request")
+                    .addHeader("Authorization", "Bearer $brightDataKey")
+                    .addHeader("Content-Type", "application/json")
+                    .post(requestBody)
+                    .build()
+                
+                withContext(Dispatchers.IO) {
+                    val response = httpClient.newCall(httpRequest).execute()
+                    if (!response.isSuccessful) return@withContext "Error: HTTP ${response.code}"
+                    
+                    val responseBody = response.body?.string() ?: return@withContext "Error: Empty response"
+                    val result = jsonParser.decodeFromString<WebSearchResult>(responseBody)
+                    result.organic.joinToString("\n\n") { "[${it.rank}] ${it.title}\n${it.link}\n${it.description}" }
+                        .ifEmpty { "No results found." }
+                }
             } catch (e: Exception) { "Error: ${e.message}" }
         }
     }
@@ -109,13 +113,31 @@ class WebSearchTool(
             val url = obj["url"]?.jsonPrimitive?.content ?: return "Error: Missing parameter 'url'"
             val request = BrightDataRequest(zone = unlockerZone, url = url, format = "json", dataFormat = "markdown")
             return try {
-                val response = httpClient.post { setBody(request) }
-                response.body<WebPageScrapingResult>().body.ifEmpty { "No content found." }
+                val requestBody = jsonParser.encodeToString(request)
+                    .toRequestBody("application/json".toMediaType())
+                
+                val httpRequest = Request.Builder()
+                    .url("https://api.brightdata.com/request")
+                    .addHeader("Authorization", "Bearer $brightDataKey")
+                    .addHeader("Content-Type", "application/json")
+                    .post(requestBody)
+                    .build()
+                
+                withContext(Dispatchers.IO) {
+                    val response = httpClient.newCall(httpRequest).execute()
+                    if (!response.isSuccessful) return@withContext "Error: HTTP ${response.code}"
+                    
+                    val responseBody = response.body?.string() ?: return@withContext "Error: Empty response"
+                    jsonParser.decodeFromString<WebPageScrapingResult>(responseBody).body.ifEmpty { "No content found." }
+                }
             } catch (e: Exception) { "Error: ${e.message}" }
         }
     }
 
     fun allTools(): List<Tool> = listOf(search, scrape)
 
-    override fun close() { httpClient.close() }
+    override fun close() {
+        httpClient.dispatcher.executorService.shutdown()
+        httpClient.connectionPool.evictAll()
+    }
 }

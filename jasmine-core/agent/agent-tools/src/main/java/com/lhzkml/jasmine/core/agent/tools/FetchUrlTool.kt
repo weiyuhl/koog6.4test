@@ -3,15 +3,15 @@ package com.lhzkml.jasmine.core.agent.tools
 import com.lhzkml.jasmine.core.prompt.model.ToolDescriptor
 import com.lhzkml.jasmine.core.prompt.model.ToolParameterDescriptor
 import com.lhzkml.jasmine.core.prompt.model.ToolParameterType.StringType
-import io.ktor.client.HttpClient
-import io.ktor.client.engine.okhttp.OkHttp
-import io.ktor.client.request.get
-import io.ktor.client.request.header
-import io.ktor.client.statement.bodyAsText
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.util.concurrent.TimeUnit
 
 /**
  * 网页抓取工具集
@@ -21,15 +21,11 @@ import kotlinx.serialization.json.jsonPrimitive
  */
 class FetchUrlTool : AutoCloseable {
 
-    private val httpClient = HttpClient(OkHttp) {
-        engine {
-            config {
-                followRedirects(true)
-                connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
-                readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
-            }
-        }
-    }
+    private val httpClient = OkHttpClient.Builder()
+        .followRedirects(true)
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .build()
 
     private val jsonParser = Json { ignoreUnknownKeys = true; prettyPrint = true }
 
@@ -39,18 +35,21 @@ class FetchUrlTool : AutoCloseable {
             ?: throw IllegalArgumentException("Missing parameter 'url'")
         val headers = obj["headers"]?.jsonObject
 
-        val response = httpClient.get(url) {
-            headers?.forEach { (key, value) ->
-                header(key, value.jsonPrimitive.content)
+        val requestBuilder = Request.Builder().url(url)
+        headers?.forEach { (key, value) ->
+            requestBuilder.addHeader(key, value.jsonPrimitive.content)
+        }
+
+        return withContext(Dispatchers.IO) {
+            val response = httpClient.newCall(requestBuilder.build()).execute()
+            
+            val status = response.code
+            if (status !in 200..299) {
+                throw RuntimeException("HTTP $status ${response.message}")
             }
-        }
 
-        val status = response.status.value
-        if (status !in 200..299) {
-            throw RuntimeException("HTTP $status ${response.status.description}")
+            url to (response.body?.string() ?: "")
         }
-
-        return url to response.bodyAsText()
     }
 
     val fetchHtml = object : Tool() {
@@ -158,7 +157,8 @@ class FetchUrlTool : AutoCloseable {
     fun allTools(): List<Tool> = listOf(fetchHtml, fetchText, fetchJson, fetchMarkdown)
 
     override fun close() {
-        httpClient.close()
+        httpClient.dispatcher.executorService.shutdown()
+        httpClient.connectionPool.evictAll()
     }
 
     companion object {
