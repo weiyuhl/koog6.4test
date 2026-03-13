@@ -1,29 +1,52 @@
 package com.lhzkml.codestudio.di
 
+import android.content.Context
 import com.lhzkml.codestudio.data.ChatDatabaseHelper
 import com.lhzkml.codestudio.data.SettingsDataStore
 import com.lhzkml.codestudio.repository.ChatRepository
 import com.lhzkml.codestudio.repository.ChatRepositoryImpl
 import com.lhzkml.codestudio.repository.SettingsRepository
 import com.lhzkml.codestudio.repository.SettingsRepositoryImpl
-import com.lhzkml.codestudio.usecase.SendMessageUseCase
-import com.lhzkml.codestudio.viewmodel.ChatViewModel
-import com.lhzkml.codestudio.viewmodel.NavigationViewModel
-import com.lhzkml.codestudio.viewmodel.SettingsViewModel
-import org.koin.android.ext.koin.androidContext
-import org.koin.androidx.viewmodel.dsl.viewModel
-import org.koin.dsl.module
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
+import dagger.hilt.components.SingletonComponent
+import javax.inject.Singleton
 
-val appModule = module {
-    single { SettingsDataStore(androidContext()) }
-    single { ChatDatabaseHelper(androidContext()) }
+@Module
+@InstallIn(SingletonComponent::class)
+internal object AppModule {
     
-    single<SettingsRepository> { SettingsRepositoryImpl(get()) }
-    single<ChatRepository> { ChatRepositoryImpl(get()) }
+    @Provides
+    @Singleton
+    internal fun provideSettingsDataStore(
+        @ApplicationContext context: Context
+    ): SettingsDataStore {
+        return SettingsDataStore(context)
+    }
     
-    factory { SendMessageUseCase(get(), get(), get()) }
+    @Provides
+    @Singleton
+    internal fun provideChatDatabaseHelper(
+        @ApplicationContext context: Context
+    ): ChatDatabaseHelper {
+        return ChatDatabaseHelper(context)
+    }
     
-    viewModel { ChatViewModel(get(), get(), get()) }
-    viewModel { SettingsViewModel(get()) }
-    viewModel { NavigationViewModel() }
+    @Provides
+    @Singleton
+    internal fun provideSettingsRepository(
+        settingsDataStore: SettingsDataStore
+    ): SettingsRepository {
+        return SettingsRepositoryImpl(settingsDataStore)
+    }
+    
+    @Provides
+    @Singleton
+    internal fun provideChatRepository(
+        dbHelper: ChatDatabaseHelper
+    ): ChatRepository {
+        return ChatRepositoryImpl(dbHelper)
+    }
 }

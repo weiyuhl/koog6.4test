@@ -6,11 +6,13 @@ import com.lhzkml.codestudio.*
 import com.lhzkml.codestudio.repository.SettingsRepository
 import com.lhzkml.codestudio.ui.model.SettingsUiModel
 import com.lhzkml.codestudio.ui.model.toUiModel
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 internal data class SettingsUiState(
     val provider: Provider = Provider.OPENAI,
@@ -37,7 +39,8 @@ internal sealed interface SettingsEvent {
     data class UpdateMaxIterations(val value: String) : SettingsEvent
 }
 
-internal class SettingsViewModel(
+@HiltViewModel
+internal class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository
 ) : ViewModel() {
     

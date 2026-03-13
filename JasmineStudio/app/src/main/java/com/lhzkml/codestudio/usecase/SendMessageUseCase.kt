@@ -4,12 +4,11 @@ import com.lhzkml.codestudio.*
 import com.lhzkml.codestudio.repository.ChatRepository
 import com.lhzkml.codestudio.repository.SettingsRepository
 import com.lhzkml.codestudio.validation.ValidationService
-import com.lhzkml.codestudio.viewmodel.NavigationViewModel
+import javax.inject.Inject
 
-internal class SendMessageUseCase(
+internal class SendMessageUseCase @Inject constructor(
     private val settingsRepository: SettingsRepository,
-    private val chatRepository: ChatRepository,
-    private val navigationViewModel: NavigationViewModel // Example, check what's needed
+    private val chatRepository: ChatRepository
 ) {
     private val agentRunner: AgentRunner = AgentRunner
 

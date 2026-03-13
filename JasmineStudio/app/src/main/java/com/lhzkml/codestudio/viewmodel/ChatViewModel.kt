@@ -7,12 +7,14 @@ import com.lhzkml.codestudio.repository.ChatRepository
 import com.lhzkml.codestudio.repository.SettingsRepository
 import com.lhzkml.codestudio.usecase.SendMessageUseCase
 import com.lhzkml.codestudio.usecase.toSendMessageRequest
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 internal data class ChatUiState(
     val messages: List<ChatMessage> = emptyList(),
@@ -27,7 +29,8 @@ internal sealed interface ChatEvent {
     data object ClearChat : ChatEvent
 }
 
-internal class ChatViewModel(
+@HiltViewModel
+internal class ChatViewModel @Inject constructor(
     private val chatRepository: ChatRepository,
     private val settingsRepository: SettingsRepository,
     private val sendMessageUseCase: SendMessageUseCase

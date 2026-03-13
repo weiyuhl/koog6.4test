@@ -22,9 +22,7 @@ data class ManualLicenseEntry(
 object OssLicenseLoader {
 
     /** 手动添加的许可（非 Maven 依赖） */
-    val manualLicenses: List<ManualLicenseEntry> = listOf(
-        ManualLicenseEntry("Koog AI Framework", "http://www.apache.org/licenses/LICENSE-2.0.txt")
-    )
+    val manualLicenses: List<ManualLicenseEntry> = emptyList()
 
     private const val METADATA_RES = "third_party_license_metadata"
     private const val LICENSES_RES = "third_party_licenses"

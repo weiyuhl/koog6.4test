@@ -2,10 +2,12 @@ package com.lhzkml.codestudio.viewmodel
 
 import androidx.lifecycle.ViewModel
 import com.lhzkml.codestudio.Route
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import javax.inject.Inject
 
 internal data class NavigationUiState(
     val currentRoute: String = Route.Chat.value
@@ -16,7 +18,8 @@ internal sealed interface NavigationEvent {
     data object NavigateBack : NavigationEvent
 }
 
-internal class NavigationViewModel : ViewModel() {
+@HiltViewModel
+internal class NavigationViewModel @Inject constructor() : ViewModel() {
     
     private val _uiState = MutableStateFlow(NavigationUiState())
     val uiState: StateFlow<NavigationUiState> = _uiState.asStateFlow()

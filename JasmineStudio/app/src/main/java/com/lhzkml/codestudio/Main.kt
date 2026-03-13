@@ -25,16 +25,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import org.koin.androidx.compose.koinViewModel
 import kotlinx.coroutines.launch
 import android.net.Uri
 
 @Composable
 internal fun App() {
-    val navigationViewModel: NavigationViewModel = koinViewModel()
-    val chatViewModel: ChatViewModel = koinViewModel()
-    val settingsViewModel: SettingsViewModel = koinViewModel()
+    val navigationViewModel: NavigationViewModel = hiltViewModel()
+    val chatViewModel: ChatViewModel = hiltViewModel()
+    val settingsViewModel: SettingsViewModel = hiltViewModel()
 
     val navigationState by navigationViewModel.uiState.collectAsStateWithLifecycle()
     val chatState by chatViewModel.uiState.collectAsStateWithLifecycle()
