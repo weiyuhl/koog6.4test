@@ -1,17 +1,5 @@
 package com.lhzkml.jasmine.core.agent.mcp
 
-import io.ktor.client.HttpClient
-import io.ktor.client.call.body
-import io.ktor.client.engine.okhttp.OkHttp
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.request.get
-import io.ktor.client.request.post
-import io.ktor.client.request.setBody
-import io.ktor.client.statement.bodyAsChannel
-import io.ktor.http.ContentType
-import io.ktor.http.contentType
-import io.ktor.serialization.kotlinx.json.json
-import io.ktor.utils.io.readUTF8Line
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -19,6 +7,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -28,22 +17,30 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
+import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * 基于 SSE (Server-Sent Events) �?MCP 客户�?
+ * 基于 SSE (Server-Sent Events) 的 MCP 客户端
  *
- * 实现 MCP �?SSE 传输协议（旧版传输方式）�?
- * 1. GET /sse �?建立 SSE 连接，接收服务器推送的事件
- * 2. POST <messageEndpoint> �?发�?JSON-RPC 请求
+ * 实现 MCP 的 SSE 传输协议（旧版传输方式）。
+ * 1. GET /sse - 建立 SSE 连接，接收服务器推送的事件
+ * 2. POST <messageEndpoint> - 发送 JSON-RPC 请求
  *
  * SSE 流中的事件格式：
- * - event: endpoint �?data �?POST 消息的目�?URL
- * - event: message �?data �?JSON-RPC 响应
+ * - event: endpoint → data 为 POST 消息的目标 URL
+ * - event: message → data 为 JSON-RPC 响应
  *
- * @param serverUrl MCP 服务器基础 URL（如 http://localhost:8080�?
- * @param ssePath SSE 端点路径，默�?/sse
+ * @param serverUrl MCP 服务器基础 URL（如 http://localhost:8080）
+ * @param ssePath SSE 端点路径，默认 /sse
  * @param customHeaders 自定义请求头
  */
 class SseMcpClient(
@@ -57,11 +54,7 @@ class SseMcpClient(
         encodeDefaults = true
     }
 
-    private val httpClient = HttpClient(OkHttp) {
-        install(ContentNegotiation) {
-            json(this@SseMcpClient.json)
-        }
-    }
+    private val httpClient = OkHttpClient.Builder().build()
 
     private val requestId = AtomicInteger(0)
     private val pendingRequests = ConcurrentHashMap<Int, CompletableDeferred<JsonObject?>>()
@@ -74,10 +67,10 @@ class SseMcpClient(
         // 启动 SSE 监听
         startSseListener()
 
-        // 等待服务器发�?endpoint 事件
+        // 等待服务器发送 endpoint 事件
         endpointReady.await()
 
-        // 发�?initialize 请求
+        // 发送 initialize 请求
         val result = rpcCall("initialize", buildJsonObject {
             put("protocolVersion", "2024-11-05")
             put("capabilities", buildJsonObject {})
@@ -87,7 +80,7 @@ class SseMcpClient(
             })
         })
 
-        // 发�?initialized 通知
+        // 发送 initialized 通知
         rpcNotify("notifications/initialized")
     }
 
@@ -137,7 +130,8 @@ class SseMcpClient(
         sseScope.cancel()
         pendingRequests.values.forEach { it.cancel() }
         pendingRequests.clear()
-        httpClient.close()
+        httpClient.dispatcher.executorService.shutdown()
+        httpClient.connectionPool.evictAll()
     }
 
     // ========== SSE 监听 ==========
@@ -146,35 +140,50 @@ class SseMcpClient(
         sseJob = sseScope.launch {
             try {
                 val sseUrl = buildSseUrl()
-                val response = httpClient.get(sseUrl) {
-                    headers.append("Accept", "text/event-stream")
-                    for ((k, v) in customHeaders) { headers.append(k, v) }
-                }
+                val httpRequest = Request.Builder()
+                    .url(sseUrl)
+                    .addHeader("Accept", "text/event-stream")
+                    .apply {
+                        for ((k, v) in customHeaders) { addHeader(k, v) }
+                    }
+                    .get()
+                    .build()
 
-                val channel = response.bodyAsChannel()
-                var currentEvent = ""
-                var currentData = StringBuilder()
+                val call = httpClient.newCall(httpRequest)
+                
+                call.enqueue(object : Callback {
+                    override fun onFailure(call: Call, e: IOException) {
+                        // SSE 连接失败
+                    }
 
-                while (!channel.isClosedForRead) {
-                    val line = channel.readUTF8Line() ?: break
+                    override fun onResponse(call: Call, response: Response) {
+                        if (!response.isSuccessful) return
 
-                    when {
-                        line.startsWith("event:") -> {
-                            currentEvent = line.removePrefix("event:").trim()
-                        }
-                        line.startsWith("data:") -> {
-                            currentData.append(line.removePrefix("data:").trim())
-                        }
-                        line.isBlank() -> {
-                            // 空行表示事件结束
-                            if (currentEvent.isNotEmpty() || currentData.isNotEmpty()) {
-                                handleSseEvent(currentEvent, currentData.toString())
-                                currentEvent = ""
-                                currentData = StringBuilder()
+                        response.body?.charStream()?.buffered()?.use { reader ->
+                            var currentEvent = ""
+                            var currentData = StringBuilder()
+
+                            reader.lineSequence().forEach { line ->
+                                when {
+                                    line.startsWith("event:") -> {
+                                        currentEvent = line.removePrefix("event:").trim()
+                                    }
+                                    line.startsWith("data:") -> {
+                                        currentData.append(line.removePrefix("data:").trim())
+                                    }
+                                    line.isBlank() -> {
+                                        // 空行表示事件结束
+                                        if (currentEvent.isNotEmpty() || currentData.isNotEmpty()) {
+                                            handleSseEvent(currentEvent, currentData.toString())
+                                            currentEvent = ""
+                                            currentData = StringBuilder()
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
-                }
+                })
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 // SSE 连接断开
@@ -185,7 +194,7 @@ class SseMcpClient(
     private fun handleSseEvent(event: String, data: String) {
         when (event) {
             "endpoint" -> {
-                // 服务器告�?POST 消息的目�?URL
+                // 服务器告知 POST 消息的目标 URL
                 messageEndpoint = resolveEndpointUrl(data)
                 if (!endpointReady.isCompleted) {
                     endpointReady.complete(Unit)
@@ -207,7 +216,7 @@ class SseMcpClient(
                         }
                     }
                 } catch (_: Exception) {
-                    // 忽略无法解析的消�?
+                    // 忽略无法解析的消息
                 }
             }
         }
@@ -271,10 +280,20 @@ class SseMcpClient(
         val request = JsonRpcRequest(id = id, method = method, params = params)
 
         try {
-            httpClient.post(endpoint) {
-                contentType(ContentType.Application.Json)
-                for ((k, v) in customHeaders) { headers.append(k, v) }
-                setBody(json.encodeToString(JsonRpcRequest.serializer(), request))
+            val requestBody = json.encodeToString(JsonRpcRequest.serializer(), request)
+                .toRequestBody("application/json".toMediaType())
+
+            val httpRequest = Request.Builder()
+                .url(endpoint)
+                .addHeader("Content-Type", "application/json")
+                .apply {
+                    for ((k, v) in customHeaders) { addHeader(k, v) }
+                }
+                .post(requestBody)
+                .build()
+
+            kotlinx.coroutines.withContext(Dispatchers.IO) {
+                httpClient.newCall(httpRequest).execute().close()
             }
         } catch (e: Exception) {
             pendingRequests.remove(id)
@@ -289,10 +308,21 @@ class SseMcpClient(
             ?: throw McpException("SSE endpoint not ready")
 
         val request = JsonRpcRequest(method = method, params = params)
-        httpClient.post(endpoint) {
-            contentType(ContentType.Application.Json)
-            for ((k, v) in customHeaders) { headers.append(k, v) }
-            setBody(json.encodeToString(JsonRpcRequest.serializer(), request))
+        
+        val requestBody = json.encodeToString(JsonRpcRequest.serializer(), request)
+            .toRequestBody("application/json".toMediaType())
+
+        val httpRequest = Request.Builder()
+            .url(endpoint)
+            .addHeader("Content-Type", "application/json")
+            .apply {
+                for ((k, v) in customHeaders) { addHeader(k, v) }
+            }
+            .post(requestBody)
+            .build()
+
+        kotlinx.coroutines.withContext(Dispatchers.IO) {
+            httpClient.newCall(httpRequest).execute().close()
         }
     }
 
