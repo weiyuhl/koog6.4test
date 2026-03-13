@@ -29,4 +29,5 @@ dependencies {
     implementation(libs.okhttp.logging.interceptor)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.okhttp.mockwebserver)
 }
