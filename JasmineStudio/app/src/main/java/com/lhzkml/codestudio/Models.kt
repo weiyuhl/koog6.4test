@@ -26,6 +26,25 @@ internal data class ChatMessage(
     val label: String? = null,
 )
 
+// 数据存储模型
+data class StoredSettings(
+    val providerName: String,
+    val apiKey: String,
+    val modelId: String,
+    val baseUrl: String,
+    val extraConfig: String,
+    val systemPrompt: String = "",
+    val temperature: String = "0.2",
+    val maxIterations: String = "50",
+)
+
+data class StoredChatMessage(
+    val id: Long,
+    val role: String,
+    val text: String,
+    val label: String?,
+)
+
 internal data class FormErrors(
     val provider: String? = null,
     val modelId: String? = null,
@@ -61,8 +80,6 @@ internal fun ChatMessage.toStoredMessage(): StoredChatMessage = StoredChatMessag
     text = text,
     label = label,
 )
-
-// SQLite Mappings will be handled in Repository
 
 
 

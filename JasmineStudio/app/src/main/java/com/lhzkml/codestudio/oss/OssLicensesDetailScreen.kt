@@ -89,34 +89,59 @@ fun OssLicensesDetailScreen(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
-    val rawLicense = remember(entry, directLicenseUrl) {
-        when {
-            directLicenseUrl != null -> directLicenseUrl
-            entry != null -> OssLicenseLoader.loadLicenseText(context, entry)
-            else -> null
-        }
-    }
+    
+    // 状态管理
+    var displayText by remember { mutableStateOf<String?>(null) }
+    var licenseSourceUrl by remember { mutableStateOf<String?>(null) }
+    var isLoading by remember { mutableStateOf(false) }
+    var fetchError by remember { mutableStateOf<String?>(null) }
 
-    // 当原始内容为 URL 时，运行时获取许可全文
-    var fetchedText by remember(rawLicense) { mutableStateOf<String?>(null) }
-    var fetchError by remember(rawLicense) { mutableStateOf<String?>(null) }
-    var isLoading by remember(rawLicense) { mutableStateOf(false) }
-
-    LaunchedEffect(rawLicense) {
-        fetchedText = null
+    // 按需加载许可内容
+    LaunchedEffect(entry, directLicenseUrl) {
+        isLoading = true
         fetchError = null
-        if (rawLicense != null && rawLicense.isLicenseUrl()) {
-            isLoading = true
-            fetchLicenseFromUrl(rawLicense)
-                .onSuccess { fetchedText = it }
-                .onFailure { fetchError = it.message ?: "获取失败" }
+        displayText = null
+        licenseSourceUrl = null
+        
+        try {
+            when {
+                // 情况1: 直接提供的 URL
+                directLicenseUrl != null -> {
+                    licenseSourceUrl = directLicenseUrl.trim()
+                    if (licenseSourceUrl!!.isLicenseUrl()) {
+                        fetchLicenseFromUrl(licenseSourceUrl!!)
+                            .onSuccess { displayText = it }
+                            .onFailure { 
+                                fetchError = it.message ?: "获取失败"
+                                displayText = null
+                            }
+                    } else {
+                        displayText = directLicenseUrl
+                    }
+                }
+                // 情况2: 从本地资源加载
+                entry != null -> {
+                    val rawText = OssLicenseLoader.loadLicenseText(context, entry)
+                    if (rawText != null && rawText.isLicenseUrl()) {
+                        licenseSourceUrl = rawText.trim()
+                        fetchLicenseFromUrl(licenseSourceUrl!!)
+                            .onSuccess { displayText = it }
+                            .onFailure { 
+                                fetchError = it.message ?: "获取失败"
+                                displayText = null
+                            }
+                    } else {
+                        displayText = rawText
+                    }
+                }
+                else -> {
+                    displayText = null
+                }
+            }
+        } finally {
             isLoading = false
         }
     }
-
-    // 最终展示的许可正文：优先使用获取到的全文，否则用原始内容
-    val displayText = fetchedText ?: rawLicense
-    val licenseSourceUrl = if (rawLicense != null && rawLicense.isLicenseUrl()) rawLicense.trim() else null
 
     Column(
         modifier = Modifier
@@ -128,7 +153,6 @@ fun OssLicensesDetailScreen(
             onBackClick = onBack
         )
 
-        // 正文区域：库名、许可来源链接、License 全文
         val uriHandler = LocalUriHandler.current
         Column(
             modifier = Modifier
@@ -136,7 +160,7 @@ fun OssLicensesDetailScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
-            // 库名称（醒目展示）
+            // 库名称
             Text(
                 text = entryName,
                 fontSize = 16.sp,
@@ -146,7 +170,7 @@ fun OssLicensesDetailScreen(
             )
             Spacer(modifier = Modifier.height(12.dp))
 
-            // 许可来源（当内容来自 URL 时显示可点击链接）
+            // 许可来源链接
             if (licenseSourceUrl != null) {
                 Text(
                     text = "许可来源：",
@@ -157,11 +181,11 @@ fun OssLicensesDetailScreen(
                 BasicText(
                     text = buildAnnotatedString {
                         withLink(LinkAnnotation.Url(
-                            url = licenseSourceUrl,
+                            url = licenseSourceUrl!!,
                             styles = TextLinkStyles(style = SpanStyle(color = Color(0xFF2196F3))),
-                            linkInteractionListener = { uriHandler.openUri(licenseSourceUrl) }
+                            linkInteractionListener = { uriHandler.openUri(licenseSourceUrl!!) }
                         )) {
-                            append(licenseSourceUrl)
+                            append(licenseSourceUrl!!)
                         }
                     },
                     style = androidx.compose.ui.text.TextStyle(fontSize = 13.sp, color = Color(0xFF2196F3)),
@@ -170,7 +194,7 @@ fun OssLicensesDetailScreen(
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
-            // License 全文 或 加载/错误状态
+            // 内容显示
             when {
                 isLoading -> Text(
                     text = "正在加载许可全文…",
@@ -178,8 +202,7 @@ fun OssLicensesDetailScreen(
                     color = Color(0xFF666666),
                     modifier = Modifier.fillMaxWidth()
                 )
-                fetchError != null && displayText == rawLicense && licenseSourceUrl != null -> {
-                    val url = licenseSourceUrl
+                fetchError != null && licenseSourceUrl != null -> {
                     Text(
                         text = "无法在线获取许可全文。请点击下方链接在浏览器中查看：",
                         fontSize = 13.sp,
@@ -190,18 +213,18 @@ fun OssLicensesDetailScreen(
                     BasicText(
                         text = buildAnnotatedString {
                             withLink(LinkAnnotation.Url(
-                                url = url,
+                                url = licenseSourceUrl!!,
                                 styles = TextLinkStyles(style = SpanStyle(color = Color(0xFF2196F3))),
-                                linkInteractionListener = { uriHandler.openUri(url) }
+                                linkInteractionListener = { uriHandler.openUri(licenseSourceUrl!!) }
                             )) {
-                                append(url)
+                                append(licenseSourceUrl!!)
                             }
                         },
                         style = androidx.compose.ui.text.TextStyle(fontSize = 13.sp, color = Color(0xFF2196F3)),
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
-                displayText != null && displayText.isNotBlank() -> {
+                displayText != null && displayText!!.isNotBlank() -> {
                     Text(
                         text = "License 全文",
                         fontSize = 13.sp,
@@ -211,7 +234,7 @@ fun OssLicensesDetailScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     BasicText(
-                        text = buildAnnotatedStringWithLinks(displayText) { uriHandler.openUri(it) },
+                        text = buildAnnotatedStringWithLinks(displayText!!) { uriHandler.openUri(it) },
                         style = androidx.compose.ui.text.TextStyle(
                             fontSize = 13.sp,
                             color = Color(0xFF333333)

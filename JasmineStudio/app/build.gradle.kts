@@ -8,6 +8,7 @@ plugins {
     alias(libs.plugins.hilt.android)
     alias(libs.plugins.kotlin.kapt)
     alias(libs.plugins.ksp)
+    id("com.google.android.gms.oss-licenses-plugin")
 }
 
 android {
@@ -59,6 +60,12 @@ kotlin {
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_17)
     }
+}
+
+// 排除已废弃的 Kotlin Stdlib JDK7/JDK8（内容已合并到 kotlin-stdlib 2.2.0）
+configurations.all {
+    exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib-jdk7")
+    exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib-jdk8")
 }
 
 dependencies {

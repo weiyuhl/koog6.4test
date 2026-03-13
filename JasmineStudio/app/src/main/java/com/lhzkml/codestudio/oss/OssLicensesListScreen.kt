@@ -56,21 +56,18 @@ fun OssLicensesListScreen(
                     modifier = Modifier.padding(16.dp)
                 )
             } else {
-                val manualNames = manualList.map { it.name }.toSet()
-                manualList.forEach { entry ->
+                // 合并并去重：使用 distinctBy 按库名去重
+                val allLicenses = (manualList.map { it.name to { onManualLicenseClick(it) } } +
+                    pluginList.map { it.name to { onPluginLicenseClick(it) } })
+                    .distinctBy { it.first }
+                    .sortedBy { it.first }
+                
+                allLicenses.forEach { (name, onClick) ->
                     OssLicenseListItem(
-                        name = entry.name,
-                        onClick = { onManualLicenseClick(entry) }
+                        name = name,
+                        onClick = onClick
                     )
                 }
-                pluginList
-                    .filter { it.name !in manualNames }
-                    .forEach { entry ->
-                        OssLicenseListItem(
-                            name = entry.name,
-                            onClick = { onPluginLicenseClick(entry) }
-                        )
-                    }
             }
         }
     }
