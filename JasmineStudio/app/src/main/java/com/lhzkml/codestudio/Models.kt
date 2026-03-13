@@ -5,6 +5,12 @@ internal enum class Route(val value: String) {
     Home("settings/home"),
     Model("settings/model"),
     Runtime("settings/runtime"),
+    OssLicensesList("oss_licenses_list"),
+    OssLicensesDetail("oss_licenses_detail/{name}"),
+}
+
+internal object RouteHelper {
+    fun ossLicensesDetail(name: String) = "oss_licenses_detail/$name"
 }
 
 internal enum class MessageRole {

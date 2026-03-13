@@ -35,6 +35,7 @@ internal fun SettingsHomeScreen(
     onBackClick: () -> Unit,
     onOpenProvider: () -> Unit,
     onOpenRuntime: () -> Unit,
+    onOpenOssLicenses: () -> Unit,
     onProviderChange: (Provider) -> Unit,
     onRuntimeChange: (Preset) -> Unit,
 ) {
@@ -92,10 +93,40 @@ internal fun SettingsHomeScreen(
                         onOpenRuntime()
                     }
                 )
+                
+                // 开源许可入口
+                SettingsItem(
+                    label = "开源许可",
+                    onClick = onOpenOssLicenses
+                )
             }
             
             Spacer(modifier = Modifier.height(16.dp))
         }
+    }
+}
+
+@Composable
+private fun SettingsItem(
+    label: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.White)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = label,
+            fontSize = 15.sp,
+            color = Color(0xFF333333),
+            fontWeight = FontWeight.Medium
+        )
+        Text(text = "→", fontSize = 16.sp, color = Color(0xFF999999))
     }
 }
 

@@ -17,6 +17,7 @@ import com.lhzkml.codestudio.components.rememberSideState
 import com.lhzkml.codestudio.components.SideValue
 import com.lhzkml.codestudio.viewmodel.*
 import com.lhzkml.codestudio.ui.model.*
+import com.lhzkml.codestudio.oss.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
@@ -28,6 +29,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
+import android.net.Uri
 
 @Composable
 internal fun App() {
@@ -156,6 +158,7 @@ internal fun App() {
                 onBackClick = { navigationViewModel.onEvent(NavigationEvent.NavigateTo(Route.Chat.value)) },
                 onOpenProvider = { navigationViewModel.onEvent(NavigationEvent.NavigateTo(Route.Model.value)) },
                 onOpenRuntime = { navigationViewModel.onEvent(NavigationEvent.NavigateTo(Route.Runtime.value)) },
+                onOpenOssLicenses = { navigationViewModel.onEvent(NavigationEvent.NavigateTo(Route.OssLicensesList.value)) },
                 onProviderChange = { settingsViewModel.onEvent(SettingsEvent.UpdateProvider(it)) },
                 onRuntimeChange = { settingsViewModel.onEvent(SettingsEvent.UpdateRuntimePreset(it)) },
             )
@@ -182,6 +185,58 @@ internal fun App() {
                 onTemperatureChanged = { settingsViewModel.onEvent(SettingsEvent.UpdateTemperature(it)) },
                 onMaxIterationsChanged = { settingsViewModel.onEvent(SettingsEvent.UpdateMaxIterations(it)) },
             )
+        }
+
+        Route.OssLicensesList.value -> {
+            OssLicensesListScreen(
+                title = "开源许可",
+                onBack = { navigationViewModel.onEvent(NavigationEvent.NavigateTo(Route.Home.value)) },
+                onPluginLicenseClick = { entry ->
+                    navigationViewModel.onEvent(
+                        NavigationEvent.NavigateTo(
+                            "oss_licenses_detail/${Uri.encode(entry.name)}?offset=${entry.offset}&length=${entry.length}"
+                        )
+                    )
+                },
+                onManualLicenseClick = { entry ->
+                    navigationViewModel.onEvent(
+                        NavigationEvent.NavigateTo(
+                            "oss_licenses_detail/${Uri.encode(entry.name)}?licenseUrl=${Uri.encode(entry.licenseUrl)}"
+                        )
+                    )
+                }
+            )
+        }
+
+        else -> {
+            // 处理 OssLicensesDetail 路由（带参数）
+            if (navigationState.currentRoute.startsWith("oss_licenses_detail/")) {
+                val parts = navigationState.currentRoute.removePrefix("oss_licenses_detail/").split("?")
+                val name = Uri.decode(parts.getOrNull(0) ?: "")
+                val params = parts.getOrNull(1)?.split("&")?.associate {
+                    val kv = it.split("=")
+                    kv[0] to (kv.getOrNull(1) ?: "")
+                } ?: emptyMap()
+                
+                val offsetStr = params["offset"] ?: ""
+                val lengthStr = params["length"] ?: ""
+                val licenseUrl = params["licenseUrl"]?.let { Uri.decode(it) }
+                
+                val entry = if (!licenseUrl.isNullOrBlank()) {
+                    null
+                } else {
+                    val offset = offsetStr.toLongOrNull() ?: 0L
+                    val length = lengthStr.toIntOrNull() ?: 0
+                    OssLicenseEntry(name = name, offset = offset, length = length)
+                }
+                
+                OssLicensesDetailScreen(
+                    entryName = name,
+                    entry = entry,
+                    directLicenseUrl = licenseUrl,
+                    onBack = { navigationViewModel.onEvent(NavigationEvent.NavigateTo(Route.OssLicensesList.value)) }
+                )
+            }
         }
     }
 }
