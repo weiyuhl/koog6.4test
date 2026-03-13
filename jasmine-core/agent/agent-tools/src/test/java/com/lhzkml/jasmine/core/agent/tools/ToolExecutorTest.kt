@@ -1,0 +1,137 @@
+package com.lhzkml.jasmine.core.agent.tools
+
+import com.lhzkml.jasmine.core.prompt.llm.ChatClient
+import com.lhzkml.jasmine.core.prompt.llm.LLMProvider
+import com.lhzkml.jasmine.core.prompt.llm.StreamResult
+import com.lhzkml.jasmine.core.prompt.model.*
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.runBlocking
+import org.junit.Assert.*
+import org.junit.Test
+
+class ToolExecutorTest {
+
+    private class FakeClient(private val responses: MutableList<ChatResult>) : ChatClient {
+        override val provider = LLMProvider.OpenAI
+        var callCount = 0; private set
+        /** 记录每次调用时传入的 tools 列表大小 */
+        var lastToolsCount = -1; private set
+
+        override suspend fun chat(
+            messages: List<ChatMessage>, model: String, maxTokens: Int?,
+            samplingParams: SamplingParams?, tools: List<ToolDescriptor>,
+            toolChoice: ToolChoice?
+        ) = chatWithUsage(messages, model, maxTokens, samplingParams, tools, toolChoice).content
+
+        override suspend fun chatWithUsage(
+            messages: List<ChatMessage>, model: String, maxTokens: Int?,
+            samplingParams: SamplingParams?, tools: List<ToolDescriptor>,
+            toolChoice: ToolChoice?
+        ): ChatResult { callCount++; lastToolsCount = tools.size; return responses.removeAt(0) }
+
+        override fun chatStream(
+            messages: List<ChatMessage>, model: String, maxTokens: Int?,
+            samplingParams: SamplingParams?, tools: List<ToolDescriptor>,
+            toolChoice: ToolChoice?
+        ): Flow<String> = flowOf("")
+
+        override suspend fun chatStreamWithUsage(
+            messages: List<ChatMessage>, model: String, maxTokens: Int?,
+            samplingParams: SamplingParams?, tools: List<ToolDescriptor>,
+            toolChoice: ToolChoice?,
+            onChunk: suspend (String) -> Unit
+        ): StreamResult {
+            val r = chatWithUsage(messages, model, maxTokens, samplingParams, tools, toolChoice)
+            if (r.content.isNotEmpty()) onChunk(r.content)
+            return StreamResult(r.content, r.usage, r.finishReason, r.toolCalls)
+        }
+
+        override suspend fun listModels(): List<ModelInfo> = emptyList()
+        override fun close() {}
+    }
+
+    private fun testPrompt(content: String) = prompt("agent") { user(content) }
+
+    @Test
+    fun `no tool calls returns immediately`() = runBlocking {
+        val client = FakeClient(mutableListOf(ChatResult("Hello!", Usage(10, 5, 15), "stop")))
+        val registry = ToolRegistry.build { register(CalculatorTool.plus) }
+        val result = ToolExecutor(client, registry).execute(testPrompt("Hi"), "m")
+        assertEquals("Hello!", result.content)
+        assertEquals(1, client.callCount)
+    }
+
+    @Test
+    fun `tool call loop`() = runBlocking {
+        val client = FakeClient(mutableListOf(
+            ChatResult("", Usage(20, 10, 30), "tool_calls",
+                listOf(ToolCall("tc1", "calculator_plus", """{"a":10,"b":20}"""))),
+            ChatResult("Result is 30.0", Usage(30, 10, 40), "stop")
+        ))
+        val registry = ToolRegistry.build { registerAll(*CalculatorTool.allTools().toTypedArray()) }
+        val result = ToolExecutor(client, registry).execute(testPrompt("10+20?"), "m")
+        assertEquals("Result is 30.0", result.content)
+        assertEquals(2, client.callCount)
+        assertEquals(50, result.usage?.promptTokens)
+    }
+
+    @Test
+    fun `max iterations`() = runBlocking {
+        val responses = mutableListOf<ChatResult>()
+        repeat(3) {
+            responses.add(ChatResult("", Usage(10, 5, 15), "tool_calls",
+                listOf(ToolCall("tc$it", "calculator_plus", """{"a":1,"b":1}"""))))
+        }
+        // 达到 maxIterations 后，ToolExecutor 会发一次无工具的总结请求
+        responses.add(ChatResult("Summary after max iterations", Usage(10, 5, 15), "stop"))
+        val client = FakeClient(responses)
+        val registry = ToolRegistry.build { register(CalculatorTool.plus) }
+        val result = ToolExecutor(client, registry, maxIterations = 3).execute(testPrompt("loop"), "m")
+        assertEquals("Summary after max iterations", result.content)
+        assertEquals("max_iterations", result.finishReason)
+        assertEquals(4, client.callCount) // 3 iterations + 1 summary
+    }
+
+    @Test
+    fun `stream mode`() = runBlocking {
+        val client = FakeClient(mutableListOf(
+            ChatResult("", Usage(10, 5, 15), "tool_calls",
+                listOf(ToolCall("tc1", "get_current_time", "{}"))),
+            ChatResult("Time is now.", Usage(15, 8, 23), "stop")
+        ))
+        val registry = ToolRegistry.build { register(GetCurrentTimeTool) }
+        val chunks = mutableListOf<String>()
+        val result = ToolExecutor(client, registry).executeStream(
+            testPrompt("time?"), "m"
+        ) { chunks.add(it) }
+        assertEquals("Time is now.", result.content)
+        assertTrue(chunks.contains("Time is now."))
+    }
+
+    @Test
+    fun `tools are passed to client`() = runBlocking {
+        val client = FakeClient(mutableListOf(ChatResult("OK", Usage(10, 5, 15), "stop")))
+        val registry = ToolRegistry.build {
+            register(CalculatorTool.plus)
+            register(CalculatorTool.minus)
+            register(GetCurrentTimeTool)
+        }
+        ToolExecutor(client, registry).execute(testPrompt("Hi"), "m")
+        assertEquals("3 tools should be passed to client", 3, client.lastToolsCount)
+    }
+
+    @Test
+    fun `tools are passed to client in stream mode`() = runBlocking {
+        val client = FakeClient(mutableListOf(ChatResult("OK", Usage(10, 5, 15), "stop")))
+        val registry = ToolRegistry.build {
+            register(CalculatorTool.plus)
+            register(CalculatorTool.minus)
+            register(GetCurrentTimeTool)
+        }
+        ToolExecutor(client, registry).executeStream(
+            testPrompt("Hi"), "m"
+        ) {}
+        assertEquals("3 tools should be passed to client in stream mode", 3, client.lastToolsCount)
+    }
+}

@@ -17,3 +17,20 @@ local.properties
 # 签名密钥库（不要提交到版本控制）
 *.jks
 *.keystore
+
+# 框架模块构建产物
+jasmine-core/**/build/
+jasmine-core/**/.gradle/
+jasmine-core/**/.idea/
+jasmine-core/**/.cxx/
+jasmine-core/**/out/
+jasmine-core/**/target/
+jasmine-core/**/*.iml
+jasmine-core/**/local.properties
+
+# MNN 构建产物
+MNN_Android_Package/**/build/
+MNN_Android_Package/**/.gradle/
+MNN_Android_Package/**/.cxx/
+MNN_Android_Package/**/obj/
+MNN_Android_Package/**/libs/*.so
