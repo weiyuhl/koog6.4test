@@ -94,7 +94,7 @@ enum class Provider(
         baseUrlLabel = "Ollama Base URL",
     ),
     DEEPSEEK("DeepSeek", "deepseek-chat", "https://api.deepseek.com", "DeepSeek 官方接口，支持 deepseek-chat、deepseek-reasoner 等模型"),
-    SILICONFLOW("硅基流动", "deepseek-ai/DeepSeek-V3", "https://api.siliconflow.cn", "硅基流动 API，支持 Qwen、DeepSeek、GLM 等多种开源模型"),
+    SILICONFLOW("硅基流动", "deepseek-ai/DeepSeek-V3.2", "https://api.siliconflow.cn", "硅基流动 API，支持 Qwen、DeepSeek、GLM 等多种开源模型"),
     MISTRAL("Mistral", "mistral-small-latest", "https://api.mistral.ai", "Mistral 官方接口，默认模型为 mistral-small-latest"),
     DASHSCOPE("DashScope / Qwen", "qwen-plus", "https://dashscope-intl.aliyuncs.com", "阿里 DashScope，默认国际站。也可以切换到中国大陆端点"),
     BEDROCK(
