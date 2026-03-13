@@ -1,16 +1,13 @@
 package com.lhzkml.jasmine.core.rag.embedding
 
-import io.ktor.client.HttpClient
-import io.ktor.client.call.body
-import io.ktor.client.engine.okhttp.OkHttp
-import io.ktor.client.request.get
-import io.ktor.client.request.headers
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import okhttp3.OkHttpClient
+import okhttp3.Request
 
 /**
  * Embedding API 客户端，用于获取模型列表等
@@ -21,7 +18,7 @@ object EmbeddingApiClient {
     private val json = Json { ignoreUnknownKeys = true }
 
     private val httpClient by lazy {
-        HttpClient(OkHttp)
+        OkHttpClient.Builder().build()
     }
 
     /**
@@ -33,10 +30,17 @@ object EmbeddingApiClient {
         if (baseUrl.isBlank() || apiKey.isBlank()) return@withContext emptyList()
         try {
             val url = baseUrl.trimEnd('/') + "/v1/models?sub_type=embedding"
-            val response = httpClient.get(url) {
-                headers { append("Authorization", "Bearer $apiKey") }
-            }.body<String>()
-            val root = json.parseToJsonElement(response).jsonObject
+            val request = Request.Builder()
+                .url(url)
+                .addHeader("Authorization", "Bearer $apiKey")
+                .get()
+                .build()
+            
+            val response = httpClient.newCall(request).execute()
+            if (!response.isSuccessful) return@withContext emptyList()
+            
+            val responseBody = response.body?.string() ?: return@withContext emptyList()
+            val root = json.parseToJsonElement(responseBody).jsonObject
             val dataArray = root["data"]?.jsonArray ?: return@withContext emptyList()
             dataArray.mapNotNull { elem ->
                 (elem as? kotlinx.serialization.json.JsonObject)?.get("id")?.jsonPrimitive?.content

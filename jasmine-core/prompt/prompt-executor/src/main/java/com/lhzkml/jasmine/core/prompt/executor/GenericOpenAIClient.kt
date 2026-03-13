@@ -2,7 +2,7 @@ package com.lhzkml.jasmine.core.prompt.executor
 
 import com.lhzkml.jasmine.core.prompt.llm.LLMProvider
 import com.lhzkml.jasmine.core.prompt.llm.RetryConfig
-import io.ktor.client.*
+import okhttp3.OkHttpClient
 
 /**
  * 通用 OpenAI 兼容客户端
@@ -14,7 +14,7 @@ class GenericOpenAIClient(
     baseUrl: String,
     chatPath: String = "/v1/chat/completions",
     retryConfig: RetryConfig = RetryConfig.DEFAULT,
-    httpClient: HttpClient? = null
+    httpClient: OkHttpClient? = null
 ) : OpenAICompatibleClient(apiKey, baseUrl, retryConfig, httpClient, chatPath) {
 
     override val provider = LLMProvider.Custom(providerName)

@@ -1,20 +1,15 @@
 package com.lhzkml.jasmine.core.rag.embedding
 
 import com.lhzkml.jasmine.core.rag.EmbeddingService
-import io.ktor.client.HttpClient
-import io.ktor.client.call.body
-import io.ktor.client.request.post
-import io.ktor.client.request.setBody
-import io.ktor.client.request.headers
-import io.ktor.http.ContentType
-import io.ktor.http.contentType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import io.ktor.client.engine.okhttp.OkHttp
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.serialization.kotlinx.json.json
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 
 /**
  * 基于远程 API 的 Embedding 服务
@@ -22,7 +17,7 @@ import io.ktor.serialization.kotlinx.json.json
  */
 class ApiEmbeddingService(
     private val config: EmbeddingRequestConfig,
-    private val httpClient: HttpClient = defaultClient()
+    private val httpClient: OkHttpClient = defaultClient()
 ) : EmbeddingService {
 
     override val dimensions: Int get() = config.dimensions
@@ -45,12 +40,21 @@ class ApiEmbeddingService(
         } else {
             Json.encodeToString(EmbeddingReqBatch(config.model, input, dims))
         }
+        
         return try {
-            httpClient.post(url) {
-                headers { append("Authorization", "Bearer ${config.apiKey}") }
-                contentType(ContentType.Application.Json)
-                setBody(body)
-            }.body<EmbeddingResponse>()
+            val request = Request.Builder()
+                .url(url)
+                .addHeader("Authorization", "Bearer ${config.apiKey}")
+                .addHeader("Content-Type", "application/json")
+                .post(body.toRequestBody("application/json".toMediaType()))
+                .build()
+            
+            withContext(Dispatchers.IO) {
+                val response = httpClient.newCall(request).execute()
+                if (!response.isSuccessful) return@withContext null
+                val responseBody = response.body?.string() ?: return@withContext null
+                Json.decodeFromString<EmbeddingResponse>(responseBody)
+            }
         } catch (e: Exception) {
             null
         }
@@ -81,11 +85,7 @@ class ApiEmbeddingService(
     )
 
     companion object {
-        private fun defaultClient() = HttpClient(OkHttp) {
-            install(ContentNegotiation) {
-                json(Json { ignoreUnknownKeys = true })
-            }
-        }
+        private fun defaultClient() = OkHttpClient.Builder().build()
     }
 }
 

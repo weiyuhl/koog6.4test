@@ -2,7 +2,7 @@ package com.lhzkml.jasmine.core.prompt.executor
 
 import com.lhzkml.jasmine.core.prompt.llm.LLMProvider
 import com.lhzkml.jasmine.core.prompt.llm.RetryConfig
-import io.ktor.client.*
+import okhttp3.OkHttpClient
 
 /**
  * 通用 Claude 兼容客户端
@@ -13,7 +13,7 @@ class GenericClaudeClient(
     apiKey: String,
     baseUrl: String,
     retryConfig: RetryConfig = RetryConfig.DEFAULT,
-    httpClient: HttpClient? = null
+    httpClient: OkHttpClient? = null
 ) : ClaudeClient(apiKey, baseUrl, retryConfig, httpClient) {
 
     override val provider = LLMProvider.Custom(providerName)

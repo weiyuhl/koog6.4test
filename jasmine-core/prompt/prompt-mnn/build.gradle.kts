@@ -49,10 +49,9 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
     
-    // Ktor Client for model download
-    implementation(libs.ktor.client.okhttp)
-    implementation(libs.ktor.client.content.negotiation)
-    implementation(libs.ktor.serialization.kotlinx.json)
+    // OkHttp for model download
+    implementation(libs.okhttp)
+    implementation(libs.okhttp.logging.interceptor)
     
     // Gson for JSON parsing
     implementation("com.google.code.gson:gson:2.10.1")

@@ -22,27 +22,26 @@ import com.lhzkml.jasmine.core.prompt.model.SamplingParams
 import com.lhzkml.jasmine.core.prompt.model.ToolCall
 import com.lhzkml.jasmine.core.prompt.model.ToolDescriptor
 import com.lhzkml.jasmine.core.prompt.model.Usage
-import io.ktor.client.*
-import io.ktor.client.call.*
-import io.ktor.client.engine.okhttp.*
-import io.ktor.client.plugins.*
-import io.ktor.client.plugins.contentnegotiation.*
-import io.ktor.client.request.*
-import io.ktor.client.request.forms.*
-import io.ktor.client.statement.*
-import io.ktor.http.*
-import io.ktor.serialization.kotlinx.json.*
-import io.ktor.utils.io.*
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.FormBody
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
+import java.io.IOException
 import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
@@ -50,6 +49,9 @@ import java.security.KeyFactory
 import java.security.Signature
 import java.security.spec.PKCS8EncodedKeySpec
 import java.util.Base64
+import java.util.concurrent.TimeUnit
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 /**
  * Google Vertex AI 客户端
@@ -60,7 +62,7 @@ class VertexAIClient(
     private val projectId: String,
     private val location: String = "global",
     private val retryConfig: RetryConfig = RetryConfig.DEFAULT,
-    httpClient: HttpClient? = null
+    httpClient: OkHttpClient? = null
 ) : ChatClient {
 
     companion object {
@@ -76,16 +78,12 @@ class VertexAIClient(
         encodeDefaults = false
     }
 
-    private val client: HttpClient = httpClient ?: HttpClient(OkHttp) {
-        install(ContentNegotiation) {
-            json(this@VertexAIClient.json)
-        }
-        install(HttpTimeout) {
-            requestTimeoutMillis = retryConfig.requestTimeoutMs
-            connectTimeoutMillis = retryConfig.connectTimeoutMs
-            socketTimeoutMillis = retryConfig.socketTimeoutMs
-        }
-    }
+    private val client: OkHttpClient = httpClient ?: OkHttpClient.Builder()
+        .connectTimeout(retryConfig.connectTimeoutMs, TimeUnit.MILLISECONDS)
+        .readTimeout(retryConfig.socketTimeoutMs, TimeUnit.MILLISECONDS)
+        .writeTimeout(retryConfig.socketTimeoutMs, TimeUnit.MILLISECONDS)
+        .callTimeout(retryConfig.requestTimeoutMs, TimeUnit.MILLISECONDS)
+        .build()
 
     @Volatile private var cachedToken: String? = null
     @Volatile private var tokenExpiresAt: Long = 0L
@@ -111,18 +109,28 @@ class VertexAIClient(
             if (now < tokenExpiresAt - 60) return token
         }
         val signedJwt = createSignedJwt(now)
-        val tokenResponse = client.submitForm(
-            url = TOKEN_URL,
-            formParameters = parameters {
-                append("grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer")
-                append("assertion", signedJwt)
-            }
-        )
-        if (!tokenResponse.status.isSuccess()) {
-            val body = try { tokenResponse.bodyAsText() } catch (_: Exception) { null }
-            throw ChatClientException(provider.name, "获取 access_token 失败: ${tokenResponse.status.value} $body", ErrorType.AUTHENTICATION)
+        
+        val formBody = FormBody.Builder()
+            .add("grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer")
+            .add("assertion", signedJwt)
+            .build()
+        
+        val request = Request.Builder()
+            .url(TOKEN_URL)
+            .post(formBody)
+            .build()
+        
+        val response = withContext(Dispatchers.IO) {
+            client.newCall(request).execute()
         }
-        val responseObj = json.decodeFromString<JsonObject>(tokenResponse.body<String>())
+        
+        if (!response.isSuccessful) {
+            val body = response.body?.string()
+            throw ChatClientException(provider.name, "获取 access_token 失败: ${response.code} $body", ErrorType.AUTHENTICATION)
+        }
+        
+        val responseBody = response.body?.string() ?: throw ChatClientException(provider.name, "token 响应为空", ErrorType.AUTHENTICATION)
+        val responseObj = json.decodeFromString<JsonObject>(responseBody)
         val accessToken = responseObj["access_token"]?.jsonPrimitive?.content
             ?: throw ChatClientException(provider.name, "token 响应缺少 access_token", ErrorType.AUTHENTICATION)
         cachedToken = accessToken
@@ -156,7 +164,7 @@ class VertexAIClient(
         val action = if (stream) "streamGenerateContent" else "generateContent"
         val host = if (location == "global") "https://aiplatform.googleapis.com"
         else "https://${location}-aiplatform.googleapis.com"
-        return "${host}/v1/projects/${projectId}/locations/${location}/publishers/google/models/${model}:${action}"
+        return "${host}/v1/projects/${projectId}/locations/${location}/publishers/google/models/${model}:${action}?alt=sse"
     }
 
     private fun convertMessages(messages: List<ChatMessage>): Pair<GeminiContent?, List<GeminiContent>> {
@@ -249,54 +257,88 @@ class VertexAIClient(
                     ),
                     tools = convertTools(tools)
                 )
-                val statement = client.preparePost(buildUrl(model, true)) {
-                    contentType(ContentType.Application.Json)
-                    header("Authorization", "Bearer $token")
-                    parameter("alt", "sse")
-                    setBody(request)
-                }
+                
+                val requestBody = json.encodeToString(request)
+                    .toRequestBody("application/json".toMediaType())
+                
+                val httpRequest = Request.Builder()
+                    .url(buildUrl(model, true))
+                    .addHeader("Authorization", "Bearer $token")
+                    .addHeader("Content-Type", "application/json")
+                    .post(requestBody)
+                    .build()
+                
                 val fullContent = StringBuilder()
                 var lastUsage: Usage? = null
                 var lastFinishReason: String? = null
                 val toolCalls = mutableListOf<ToolCall>()
 
-                statement.execute { response ->
-                    if (!response.status.isSuccess()) {
-                        val body = try { response.bodyAsText() } catch (_: Exception) { null }
-                        throw ChatClientException.fromStatusCode(provider.name, response.status.value, body)
-                    }
-
-                    val sseChannel = Channel<String>(Channel.BUFFERED)
-
-                    coroutineScope {
-                        launch { SseEventParser.parse(response.bodyAsChannel(), sseChannel) }
-
-                        for (data in sseChannel) {
-                            try {
-                                val chunk = json.decodeFromString<GeminiResponse>(data)
-                                chunk.usageMetadata?.let {
-                                    lastUsage = Usage(promptTokens = it.promptTokenCount, completionTokens = it.candidatesTokenCount, totalTokens = it.totalTokenCount)
-                                }
-                                val firstCandidate = chunk.candidates?.firstOrNull()
-                                if (firstCandidate?.finishReason != null) lastFinishReason = firstCandidate.finishReason
-                                firstCandidate?.content?.parts?.forEach { part ->
-                                    val text = part.text
-                                    if (!text.isNullOrEmpty()) { fullContent.append(text); onChunk(text) }
-                                    part.functionCall?.let { fc ->
-                                        toolCalls.add(ToolCall(id = "vertex_${fc.name}_${System.nanoTime()}", name = fc.name, arguments = fc.args?.toString() ?: "{}"))
-                                    }
-                                }
-                            } catch (_: Exception) { }
+                withContext(Dispatchers.IO) {
+                    suspendCancellableCoroutine<Unit> { continuation ->
+                        val call = client.newCall(httpRequest)
+                        
+                        continuation.invokeOnCancellation {
+                            call.cancel()
                         }
+                        
+                        call.enqueue(object : Callback {
+                            override fun onFailure(call: Call, e: IOException) {
+                                continuation.resumeWithException(e)
+                            }
+
+                            override fun onResponse(call: Call, response: Response) {
+                                try {
+                                    if (!response.isSuccessful) {
+                                        val body = response.body?.string()
+                                        continuation.resumeWithException(
+                                            ChatClientException.fromStatusCode(provider.name, response.code, body)
+                                        )
+                                        return
+                                    }
+
+                                    response.body?.charStream()?.buffered()?.use { reader ->
+                                        reader.lineSequence().forEach { line ->
+                                            if (line.startsWith("data: ")) {
+                                                val data = line.substring(6).trim()
+                                                if (data.isEmpty()) return@forEach
+                                                
+                                                try {
+                                                    val chunk = json.decodeFromString<GeminiResponse>(data)
+                                                    chunk.usageMetadata?.let {
+                                                        lastUsage = Usage(promptTokens = it.promptTokenCount, completionTokens = it.candidatesTokenCount, totalTokens = it.totalTokenCount)
+                                                    }
+                                                    val firstCandidate = chunk.candidates?.firstOrNull()
+                                                    if (firstCandidate?.finishReason != null) lastFinishReason = firstCandidate.finishReason
+                                                    firstCandidate?.content?.parts?.forEach { part ->
+                                                        val text = part.text
+                                                        if (!text.isNullOrEmpty()) {
+                                                            fullContent.append(text)
+                                                            kotlinx.coroutines.runBlocking { onChunk(text) }
+                                                        }
+                                                        part.functionCall?.let { fc ->
+                                                            toolCalls.add(ToolCall(id = "vertex_${fc.name}_${System.nanoTime()}", name = fc.name, arguments = fc.args?.toString() ?: "{}"))
+                                                        }
+                                                    }
+                                                } catch (_: Exception) { }
+                                            }
+                                        }
+                                    }
+                                    
+                                    continuation.resume(Unit)
+                                } catch (e: Exception) {
+                                    continuation.resumeWithException(e)
+                                }
+                            }
+                        })
                     }
                 }
+                
                 StreamResult(content = fullContent.toString(), usage = lastUsage, finishReason = lastFinishReason, toolCalls = toolCalls)
             } catch (e: ChatClientException) { throw e }
             catch (e: kotlinx.coroutines.CancellationException) { throw e }
             catch (e: UnknownHostException) { throw ChatClientException(provider.name, "无法连接到服务器，请检查网络", ErrorType.NETWORK, cause = e) }
             catch (e: ConnectException) { throw ChatClientException(provider.name, "连接失败，请检查网络", ErrorType.NETWORK, cause = e) }
             catch (e: SocketTimeoutException) { throw ChatClientException(provider.name, "请求超时，请稍后重试", ErrorType.NETWORK, cause = e) }
-            catch (e: HttpRequestTimeoutException) { throw ChatClientException(provider.name, "请求超时，请稍后重试", ErrorType.NETWORK, cause = e) }
             catch (e: Exception) { throw ChatClientException(provider.name, "流式请求失败: ${e.message}", ErrorType.UNKNOWN, cause = e) }
         }
     }
@@ -304,6 +346,7 @@ class VertexAIClient(
     override suspend fun listModels(): List<ModelInfo> = emptyList()
 
     override fun close() {
-        client.close()
+        client.dispatcher.executorService.shutdown()
+        client.connectionPool.evictAll()
     }
 }

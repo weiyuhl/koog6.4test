@@ -23,21 +23,15 @@ import com.lhzkml.jasmine.core.prompt.model.ToolCall
 import com.lhzkml.jasmine.core.prompt.model.ToolChoice
 import com.lhzkml.jasmine.core.prompt.model.ToolDescriptor
 import com.lhzkml.jasmine.core.prompt.model.Usage
-import io.ktor.client.*
-import io.ktor.client.call.*
-import io.ktor.client.engine.okhttp.*
-import io.ktor.client.plugins.*
-import io.ktor.client.plugins.contentnegotiation.*
-import io.ktor.client.request.*
-import io.ktor.client.statement.*
-import io.ktor.http.*
-import io.ktor.serialization.kotlinx.json.*
-import io.ktor.utils.io.*
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
@@ -46,9 +40,20 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
+import java.io.IOException
 import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
+import java.util.concurrent.TimeUnit
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 /**
  * OpenAI 兼容 API 的基础客户端
@@ -58,7 +63,7 @@ abstract class OpenAICompatibleClient(
     protected val apiKey: String,
     protected val baseUrl: String,
     protected val retryConfig: RetryConfig = RetryConfig.DEFAULT,
-    httpClient: HttpClient? = null,
+    httpClient: OkHttpClient? = null,
     protected val chatPath: String = "/v1/chat/completions"
 ) : ThinkingChatClient {
 
@@ -68,16 +73,12 @@ abstract class OpenAICompatibleClient(
         explicitNulls = false
     }
 
-    internal val httpClient: HttpClient = httpClient ?: HttpClient(OkHttp) {
-        install(ContentNegotiation) {
-            json(this@OpenAICompatibleClient.json)
-        }
-        install(HttpTimeout) {
-            requestTimeoutMillis = retryConfig.requestTimeoutMs
-            connectTimeoutMillis = retryConfig.connectTimeoutMs
-            socketTimeoutMillis = retryConfig.socketTimeoutMs
-        }
-    }
+    internal val httpClient: OkHttpClient = httpClient ?: OkHttpClient.Builder()
+        .connectTimeout(retryConfig.connectTimeoutMs, TimeUnit.MILLISECONDS)
+        .readTimeout(retryConfig.socketTimeoutMs, TimeUnit.MILLISECONDS)
+        .writeTimeout(retryConfig.socketTimeoutMs, TimeUnit.MILLISECONDS)
+        .callTimeout(retryConfig.requestTimeoutMs, TimeUnit.MILLISECONDS)
+        .build()
 
     // ========== 消息/工具转换 ==========
 
@@ -199,11 +200,16 @@ abstract class OpenAICompatibleClient(
                     tools = convertTools(tools),
                     toolChoice = convertToolChoice(toolChoice)
                 )
-                val statement = httpClient.preparePost("${baseUrl}${chatPath}") {
-                    contentType(ContentType.Application.Json)
-                    header("Authorization", "Bearer $apiKey")
-                    setBody(request)
-                }
+                
+                val requestBody = json.encodeToString(request)
+                    .toRequestBody("application/json".toMediaType())
+                
+                val httpRequest = Request.Builder()
+                    .url("${baseUrl}${chatPath}")
+                    .addHeader("Authorization", "Bearer $apiKey")
+                    .addHeader("Content-Type", "application/json")
+                    .post(requestBody)
+                    .build()
 
                 val fullContent = StringBuilder()
                 val thinkingContent = StringBuilder()
@@ -211,55 +217,78 @@ abstract class OpenAICompatibleClient(
                 var lastFinishReason: String? = null
                 val toolCallAccumulator = mutableMapOf<Int, Triple<String, String, StringBuilder>>()
 
-                statement.execute { response ->
-                    if (!response.status.isSuccess()) {
-                        val body = try { response.bodyAsText() } catch (_: Exception) { null }
-                        throw ChatClientException.fromStatusCode(provider.name, response.status.value, body)
-                    }
-
-                    val sseChannel = Channel<String>(Channel.BUFFERED)
-
-                    coroutineScope {
-                        launch {
-                            SseEventParser.parse(
-                                response.bodyAsChannel(),
-                                sseChannel,
-                                doneSignals = setOf("[DONE]")
-                            )
+                withContext(Dispatchers.IO) {
+                    suspendCancellableCoroutine<Unit> { continuation ->
+                        val call = httpClient.newCall(httpRequest)
+                        
+                        continuation.invokeOnCancellation {
+                            call.cancel()
                         }
+                        
+                        call.enqueue(object : Callback {
+                            override fun onFailure(call: Call, e: IOException) {
+                                continuation.resumeWithException(e)
+                            }
 
-                        for (data in sseChannel) {
-                            try {
-                                val chunk = json.decodeFromString<ChatStreamResponse>(data)
-                                if (chunk.usage != null) lastUsage = chunk.usage
-                                val firstChoice = chunk.choices.firstOrNull()
-                                if (firstChoice?.finishReason != null) lastFinishReason = firstChoice.finishReason
-                                val content = firstChoice?.delta?.content
-                                if (!content.isNullOrEmpty()) {
-                                    fullContent.append(content)
-                                    onChunk(content)
-                                }
-                                val reasoning = firstChoice?.delta?.reasoningContent
-                                if (!reasoning.isNullOrEmpty()) {
-                                    thinkingContent.append(reasoning)
-                                    onThinking(reasoning)
-                                }
-                                firstChoice?.delta?.toolCalls?.forEach { stc ->
-                                    val tcId = stc.id
-                                    if (tcId != null) {
-                                        toolCallAccumulator[stc.index] = Triple(
-                                            tcId,
-                                            stc.function?.name ?: "",
-                                            StringBuilder(stc.function?.arguments ?: "")
+                            override fun onResponse(call: Call, response: Response) {
+                                try {
+                                    if (!response.isSuccessful) {
+                                        val body = response.body?.string()
+                                        continuation.resumeWithException(
+                                            ChatClientException.fromStatusCode(provider.name, response.code, body)
                                         )
-                                    } else {
-                                        toolCallAccumulator[stc.index]?.let { (_, _, args) ->
-                                            args.append(stc.function?.arguments ?: "")
+                                        return
+                                    }
+
+                                    response.body?.charStream()?.buffered()?.use { reader ->
+                                        reader.lineSequence().forEach { line ->
+                                            if (line.startsWith("data: ")) {
+                                                val data = line.substring(6).trim()
+                                                if (data == "[DONE]") return@forEach
+                                                
+                                                try {
+                                                    val chunk = json.decodeFromString<ChatStreamResponse>(data)
+                                                    if (chunk.usage != null) lastUsage = chunk.usage
+                                                    val firstChoice = chunk.choices.firstOrNull()
+                                                    if (firstChoice?.finishReason != null) lastFinishReason = firstChoice.finishReason
+                                                    
+                                                    val content = firstChoice?.delta?.content
+                                                    if (!content.isNullOrEmpty()) {
+                                                        fullContent.append(content)
+                                                        kotlinx.coroutines.runBlocking { onChunk(content) }
+                                                    }
+                                                    
+                                                    val reasoning = firstChoice?.delta?.reasoningContent
+                                                    if (!reasoning.isNullOrEmpty()) {
+                                                        thinkingContent.append(reasoning)
+                                                        kotlinx.coroutines.runBlocking { onThinking(reasoning) }
+                                                    }
+                                                    
+                                                    firstChoice?.delta?.toolCalls?.forEach { stc ->
+                                                        val tcId = stc.id
+                                                        if (tcId != null) {
+                                                            toolCallAccumulator[stc.index] = Triple(
+                                                                tcId,
+                                                                stc.function?.name ?: "",
+                                                                StringBuilder(stc.function?.arguments ?: "")
+                                                            )
+                                                        } else {
+                                                            toolCallAccumulator[stc.index]?.let { (_, _, args) ->
+                                                                args.append(stc.function?.arguments ?: "")
+                                                            }
+                                                        }
+                                                    }
+                                                } catch (_: Exception) { }
+                                            }
                                         }
                                     }
+                                    
+                                    continuation.resume(Unit)
+                                } catch (e: Exception) {
+                                    continuation.resumeWithException(e)
                                 }
-                            } catch (_: Exception) { }
-                        }
+                            }
+                        })
                     }
                 }
 
@@ -279,7 +308,6 @@ abstract class OpenAICompatibleClient(
             catch (e: UnknownHostException) { throw ChatClientException(provider.name, "无法连接到服务器，请检查网络", ErrorType.NETWORK, cause = e) }
             catch (e: ConnectException) { throw ChatClientException(provider.name, "连接失败，请检查网络", ErrorType.NETWORK, cause = e) }
             catch (e: SocketTimeoutException) { throw ChatClientException(provider.name, "请求超时，请稍后重试", ErrorType.NETWORK, cause = e) }
-            catch (e: HttpRequestTimeoutException) { throw ChatClientException(provider.name, "请求超时，请稍后重试", ErrorType.NETWORK, cause = e) }
             catch (e: Exception) { throw ChatClientException(provider.name, "流式请求失败: ${e.message}", ErrorType.UNKNOWN, cause = e) }
         }
     }
@@ -289,17 +317,25 @@ abstract class OpenAICompatibleClient(
     override suspend fun listModels(): List<ModelInfo> {
         return executeWithRetry(retryConfig) {
             try {
-                val response: HttpResponse = httpClient.get("${baseUrl}/v1/models") {
-                    header("Authorization", "Bearer $apiKey")
+                val httpRequest = Request.Builder()
+                    .url("${baseUrl}/v1/models")
+                    .addHeader("Authorization", "Bearer $apiKey")
+                    .get()
+                    .build()
+
+                withContext(Dispatchers.IO) {
+                    val response = httpClient.newCall(httpRequest).execute()
+                    
+                    if (!response.isSuccessful) {
+                        val body = response.body?.string()
+                        throw ChatClientException.fromStatusCode(provider.name, response.code, body)
+                    }
+                    
+                    val body = response.body?.string() ?: return@withContext emptyList()
+                    val root = json.parseToJsonElement(body).jsonObject
+                    val dataArray = root["data"]?.jsonArray ?: return@withContext emptyList()
+                    dataArray.map { parseModelInfoFromJson(it.jsonObject) }
                 }
-                if (!response.status.isSuccess()) {
-                    val body = try { response.bodyAsText() } catch (_: Exception) { null }
-                    throw ChatClientException.fromStatusCode(provider.name, response.status.value, body)
-                }
-                val body = response.bodyAsText()
-                val root = json.parseToJsonElement(body).jsonObject
-                val dataArray = root["data"]?.jsonArray ?: return@executeWithRetry emptyList()
-                dataArray.map { parseModelInfoFromJson(it.jsonObject) }
             } catch (e: ChatClientException) { throw e }
             catch (e: Exception) { throw ChatClientException(provider.name, "获取模型列表失败: ${e.message}", ErrorType.UNKNOWN, cause = e) }
         }
@@ -329,6 +365,7 @@ abstract class OpenAICompatibleClient(
     }
 
     override fun close() {
-        httpClient.close()
+        httpClient.dispatcher.executorService.shutdown()
+        httpClient.connectionPool.evictAll()
     }
 }

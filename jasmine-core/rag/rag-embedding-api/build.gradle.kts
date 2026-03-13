@@ -23,10 +23,10 @@ android {
 
 dependencies {
     implementation(project(":jasmine-core:rag:rag-core"))
-    implementation(libs.ktor.client.okhttp)
+    implementation(libs.okhttp)
+    implementation(libs.retrofit)
+    implementation(libs.retrofit.converter.kotlinx.serialization)
     implementation(libs.kotlinx.serialization.json)
-    implementation(libs.ktor.client.content.negotiation)
-    implementation(libs.ktor.serialization.kotlinx.json)
     implementation(libs.kotlinx.coroutines.core)
     testImplementation(libs.junit)
 }

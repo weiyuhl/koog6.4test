@@ -7,11 +7,11 @@ import com.lhzkml.jasmine.core.prompt.llm.RetryConfig
 import com.lhzkml.jasmine.core.prompt.llm.executeWithRetry
 import com.lhzkml.jasmine.core.prompt.model.BalanceDetail
 import com.lhzkml.jasmine.core.prompt.model.BalanceInfo
-import io.ktor.client.*
-import io.ktor.client.request.*
-import io.ktor.client.statement.*
-import io.ktor.http.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
+import okhttp3.OkHttpClient
+import okhttp3.Request
 
 /**
  * 硅基流动客户端
@@ -25,7 +25,7 @@ class SiliconFlowClient(
     baseUrl: String = DEFAULT_BASE_URL,
     chatPath: String = "/v1/chat/completions",
     retryConfig: RetryConfig = RetryConfig.DEFAULT,
-    httpClient: HttpClient? = null
+    httpClient: OkHttpClient? = null
 ) : OpenAICompatibleClient(apiKey, baseUrl, retryConfig, httpClient, chatPath) {
 
     companion object {
@@ -33,8 +33,6 @@ class SiliconFlowClient(
     }
 
     override val provider = LLMProvider.SiliconFlow
-
-
 
     @Serializable
     private data class SiliconFlowUserInfoResponse(
@@ -54,17 +52,23 @@ class SiliconFlowClient(
     override suspend fun getBalance(): BalanceInfo {
         return executeWithRetry(retryConfig) {
             try {
-                val response: HttpResponse = httpClient.get("${baseUrl}/v1/user/info") {
-                    header("Authorization", "Bearer $apiKey")
-                    accept(ContentType.Application.Json)
+                val httpRequest = Request.Builder()
+                    .url("${baseUrl}/v1/user/info")
+                    .addHeader("Authorization", "Bearer $apiKey")
+                    .addHeader("Accept", "application/json")
+                    .get()
+                    .build()
+
+                val response = withContext(Dispatchers.IO) {
+                    httpClient.newCall(httpRequest).execute()
                 }
 
-                if (!response.status.isSuccess()) {
-                    val body = try { response.bodyAsText() } catch (_: Exception) { null }
-                    throw ChatClientException.fromStatusCode(provider.name, response.status.value, body)
+                if (!response.isSuccessful) {
+                    val body = response.body?.string()
+                    throw ChatClientException.fromStatusCode(provider.name, response.code, body)
                 }
 
-                val body = response.bodyAsText()
+                val body = response.body?.string() ?: throw ChatClientException(provider.name, "响应为空", ErrorType.PARSE_ERROR)
                 val result = json.decodeFromString<SiliconFlowUserInfoResponse>(body)
                 val data = result.data
                     ?: throw ChatClientException(provider.name, "响应中没有用户数据", ErrorType.PARSE_ERROR)
