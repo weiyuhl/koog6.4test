@@ -23,7 +23,7 @@ android {
 
     defaultConfig {
         applicationId = "com.lhzkml.codestudio"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
@@ -69,6 +69,7 @@ configurations.all {
 }
 
 dependencies {
+    implementation(project(":jasmine-core:prompt:prompt-executor"))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.animation)
     implementation(libs.androidx.compose.foundation)
