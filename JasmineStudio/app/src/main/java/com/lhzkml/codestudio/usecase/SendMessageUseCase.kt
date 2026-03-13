@@ -33,7 +33,8 @@ internal class SendMessageUseCase @Inject constructor(
             // 执行 Agent
             val result = agentRunner.runAgentStreaming(
                 request = request.toAgentRequest(),
-                onTextDelta = onTextDelta
+                onTextDelta = onTextDelta,
+                onEvent = { }
             )
             
             // 处理结果
