@@ -37,7 +37,7 @@ internal object AppModule {
             ChatDatabase::class.java,
             "chat_studio.db"
         )
-        .fallbackToDestructiveMigration() // 简单起见，使用破坏性迁移
+        .fallbackToDestructiveMigration()
         .build()
     }
     
