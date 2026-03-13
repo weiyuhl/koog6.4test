@@ -81,6 +81,7 @@ dependencies {
     implementation(libs.koog.agents.utils)
     implementation(libs.koog.prompt.executor.llms.all)
     implementation(libs.koog.prompt.executor.dashscope.client)
+    implementation(libs.koin.androidx.compose)
     debugImplementation(libs.androidx.compose.ui.tooling)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

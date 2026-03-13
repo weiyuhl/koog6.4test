@@ -20,27 +20,22 @@ import com.lhzkml.codestudio.ui.model.*
 import com.lhzkml.codestudio.oss.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
+import org.koin.androidx.compose.koinViewModel
 import kotlinx.coroutines.launch
 import android.net.Uri
 
 @Composable
 internal fun App() {
-    val context = LocalContext.current
-    val appContainer = remember { AppContainer(context) }
-    
-    val navigationViewModel: NavigationViewModel = viewModel { appContainer.createNavigationViewModel() }
-    val chatViewModel: ChatViewModel = viewModel { appContainer.createChatViewModel() }
-    val settingsViewModel: SettingsViewModel = viewModel { appContainer.createSettingsViewModel() }
-    
+    val navigationViewModel: NavigationViewModel = koinViewModel()
+    val chatViewModel: ChatViewModel = koinViewModel()
+    val settingsViewModel: SettingsViewModel = koinViewModel()
+
     val navigationState by navigationViewModel.uiState.collectAsStateWithLifecycle()
     val chatState by chatViewModel.uiState.collectAsStateWithLifecycle()
     val settingsState by settingsViewModel.uiState.collectAsStateWithLifecycle()
