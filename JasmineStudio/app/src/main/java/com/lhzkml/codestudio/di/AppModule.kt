@@ -1,7 +1,8 @@
 package com.lhzkml.codestudio.di
 
 import android.content.Context
-import com.lhzkml.codestudio.data.ChatDatabaseHelper
+import androidx.room.Room
+import com.lhzkml.codestudio.data.ChatDatabase
 import com.lhzkml.codestudio.data.SettingsDataStore
 import com.lhzkml.codestudio.repository.ChatRepository
 import com.lhzkml.codestudio.repository.ChatRepositoryImpl
@@ -28,10 +29,14 @@ internal object AppModule {
     
     @Provides
     @Singleton
-    internal fun provideChatDatabaseHelper(
+    internal fun provideChatDatabase(
         @ApplicationContext context: Context
-    ): ChatDatabaseHelper {
-        return ChatDatabaseHelper(context)
+    ): ChatDatabase {
+        return Room.databaseBuilder(
+            context,
+            ChatDatabase::class.java,
+            "chat_studio.db"
+        ).build()
     }
     
     @Provides
@@ -45,8 +50,8 @@ internal object AppModule {
     @Provides
     @Singleton
     internal fun provideChatRepository(
-        dbHelper: ChatDatabaseHelper
+        database: ChatDatabase
     ): ChatRepository {
-        return ChatRepositoryImpl(dbHelper)
+        return ChatRepositoryImpl(database)
     }
 }
