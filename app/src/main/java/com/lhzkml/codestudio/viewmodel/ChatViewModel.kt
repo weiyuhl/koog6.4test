@@ -196,7 +196,7 @@ internal class ChatViewModel @Inject constructor(
     private fun switchSession(sessionId: String) {
         viewModelScope.launch {
             chatRepository.switchSession(sessionId)
-            val messages = chatRepository.loadMessages()
+            val messages = chatRepository.loadMessagesForSession(sessionId)
             nextMessageId = (messages.maxOfOrNull { it.id } ?: 0L) + 1L
             _uiState.update { it.copy(messages = messages, currentSessionId = sessionId) }
         }
@@ -206,7 +206,7 @@ internal class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             chatRepository.deleteSession(sessionId)
             val currentSessionId = chatRepository.getCurrentSessionId()
-            val messages = chatRepository.loadMessages()
+            val messages = chatRepository.loadMessagesForSession(currentSessionId)
             nextMessageId = (messages.maxOfOrNull { it.id } ?: 0L) + 1L
             _uiState.update { it.copy(messages = messages, currentSessionId = currentSessionId) }
             loadSessions()

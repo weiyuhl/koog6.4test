@@ -13,6 +13,7 @@ internal interface ChatRepository {
     val messagesFlow: Flow<List<ChatMessage>>
     val sessionsFlow: Flow<List<ChatSession>>
     suspend fun loadMessages(): List<ChatMessage>
+    suspend fun loadMessagesForSession(sessionId: String): List<ChatMessage>
     suspend fun saveMessages(messages: List<ChatMessage>)
     suspend fun loadSessions(): List<ChatSession>
     suspend fun createNewSession(): String
@@ -48,6 +49,12 @@ internal class ChatRepositoryImpl(
             )
         )
         return emptyList()
+    }
+    
+    override suspend fun loadMessagesForSession(sessionId: String): List<ChatMessage> {
+        return database.chatMessageDao()
+            .getMessages(sessionId)
+            .map { it.toChatMessage() }
     }
 
     override suspend fun saveMessages(messages: List<ChatMessage>) {
