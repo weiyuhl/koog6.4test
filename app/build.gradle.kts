@@ -66,6 +66,8 @@ kotlin {
 configurations.all {
     exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib-jdk7")
     exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib-jdk8")
+    // 排除重复的 annotations 依赖
+    exclude(group = "org.jetbrains", module = "annotations-java5")
 }
 
 dependencies {
@@ -93,6 +95,12 @@ dependencies {
     implementation(libs.hilt.navigation.compose)
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
+    
+    // Markwon - Markdown 渲染库
+    implementation("io.noties.markwon:core:4.6.2")
+    implementation("io.noties.markwon:syntax-highlight:4.6.2")
+    implementation("io.noties:prism4j:2.0.0")
+    
     kapt(libs.hilt.compiler)
     kapt(libs.kotlin.metadata.jvm)
     ksp(libs.room.compiler)

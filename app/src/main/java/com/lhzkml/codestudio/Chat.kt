@@ -35,9 +35,12 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.viewinterop.AndroidView
 import kotlinx.coroutines.launch
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.font.FontWeight
@@ -45,6 +48,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lhzkml.codestudio.components.Bar
 import com.lhzkml.codestudio.components.IconButton
+import io.noties.markwon.Markwon
+import android.widget.TextView
 
 @Composable
 internal fun ChatScreen(
@@ -176,6 +181,7 @@ private fun MessageBubble(message: ChatMessage) {
     }
     
     val isUser = message.role == MessageRole.User
+    val isAssistant = message.role == MessageRole.Assistant
 
     Column(
         modifier = Modifier
@@ -249,18 +255,52 @@ private fun MessageBubble(message: ChatMessage) {
             modifier = Modifier.fillMaxWidth(),
             contentAlignment = if (isUser) Alignment.CenterEnd else Alignment.CenterStart
         ) {
-            SelectionContainer {
-                BasicText(
+            if (isAssistant) {
+                // AI 消息使用 Markdown 渲染
+                MarkdownText(
                     text = message.text,
-                    style = TextStyle(
-                        fontSize = 15.sp,
-                        color = Color(0xFF333333),
-                        lineHeight = 22.sp
-                    )
+                    modifier = Modifier.fillMaxWidth()
                 )
+            } else {
+                // 用户和系统消息使用普通文本
+                SelectionContainer {
+                    BasicText(
+                        text = message.text,
+                        style = TextStyle(
+                            fontSize = 15.sp,
+                            color = Color(0xFF333333),
+                            lineHeight = 22.sp
+                        )
+                    )
+                }
             }
         }
     }
+}
+
+@Composable
+private fun MarkdownText(
+    text: String,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val markwon = remember {
+        Markwon.create(context)
+    }
+    
+    AndroidView(
+        factory = { ctx ->
+            TextView(ctx).apply {
+                textSize = 15f
+                setTextColor(Color(0xFF333333).toArgb())
+                setTextIsSelectable(true)
+            }
+        },
+        update = { textView ->
+            markwon.setMarkdown(textView, text)
+        },
+        modifier = modifier
+    )
 }
 
 @Composable

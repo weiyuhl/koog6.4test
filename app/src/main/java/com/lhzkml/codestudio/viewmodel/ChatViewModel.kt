@@ -84,7 +84,7 @@ internal class ChatViewModel @Inject constructor(
         if (userPrompt.isBlank() || currentState.isRunning) return
         
         addMessage(MessageRole.User, userPrompt)
-        val assistantId = addMessage(MessageRole.Assistant, STREAMING_PLACEHOLDER, currentState.provider.displayName)
+        val assistantId = addMessage(MessageRole.Assistant, STREAMING_PLACEHOLDER, currentState.provider.displayName, isStreaming = true)
         
         _uiState.update { it.copy(prompt = "", isRunning = true) }
         
@@ -122,7 +122,8 @@ internal class ChatViewModel @Inject constructor(
                 onTextDelta = { delta ->
                     updateMessage(assistantId) { current ->
                         current.copy(
-                            text = if (current.text == STREAMING_PLACEHOLDER) delta else current.text + delta
+                            text = if (current.text == STREAMING_PLACEHOLDER) delta else current.text + delta,
+                            isStreaming = true
                         )
                     }
                 }
@@ -133,7 +134,8 @@ internal class ChatViewModel @Inject constructor(
                     updateMessage(assistantId) { current ->
                         current.copy(
                             text = current.text.takeUnless { it.isBlank() || it == STREAMING_PLACEHOLDER }
-                                ?: sendResult.answer
+                                ?: sendResult.answer,
+                            isStreaming = false
                         )
                     }
                     if (sendResult.hasEvents) {
@@ -160,8 +162,8 @@ internal class ChatViewModel @Inject constructor(
         addMessage(MessageRole.System, "对话已清空。现在可以重新开始聊天", "新对话")
     }
     
-    private fun addMessage(role: MessageRole, text: String, label: String? = null): Long {
-        val message = ChatMessage(nextMessageId++, role, text, label)
+    private fun addMessage(role: MessageRole, text: String, label: String? = null, isStreaming: Boolean = false): Long {
+        val message = ChatMessage(nextMessageId++, role, text, label, isStreaming)
         _uiState.update { it.copy(messages = it.messages + message) }
         persistMessages()
         return message.id

@@ -24,6 +24,7 @@ internal data class ChatMessage(
     val role: MessageRole,
     val text: String,
     val label: String? = null,
+    val isStreaming: Boolean = false,
 )
 
 // 数据存储模型
