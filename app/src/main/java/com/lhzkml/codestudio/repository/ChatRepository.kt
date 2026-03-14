@@ -38,30 +38,16 @@ internal class ChatRepositoryImpl(
         .map { entities -> entities.map { it.toChatSession() } }
 
     override suspend fun loadMessages(): List<ChatMessage> {
-        // 先从 DataStore 加载当前会话 ID
-        val savedSessionId = settingsDataStore.currentSessionIdFlow.first()
-        
-        // 检查保存的会话是否存在
-        val sessionExists = database.chatSessionDao().getSession(savedSessionId) != null
-        
-        if (!sessionExists) {
-            // 如果保存的会话不存在，创建新会话但不保存 ID
-            currentSessionId = "session_${System.currentTimeMillis()}"
-            database.chatSessionDao().insertSession(
-                ChatSessionEntity(
-                    id = currentSessionId,
-                    title = "新对话",
-                    createdAt = System.currentTimeMillis()
-                )
+        // 每次打开应用都创建新会话，不加载上次的会话
+        currentSessionId = "session_${System.currentTimeMillis()}"
+        database.chatSessionDao().insertSession(
+            ChatSessionEntity(
+                id = currentSessionId,
+                title = "新对话",
+                createdAt = System.currentTimeMillis()
             )
-            return emptyList()
-        }
-        
-        currentSessionId = savedSessionId
-        ensureSessionExists(currentSessionId)
-        return database.chatMessageDao()
-            .getMessages(currentSessionId)
-            .map { it.toChatMessage() }
+        )
+        return emptyList()
     }
 
     override suspend fun saveMessages(messages: List<ChatMessage>) {
