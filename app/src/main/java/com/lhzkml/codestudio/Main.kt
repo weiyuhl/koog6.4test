@@ -185,11 +185,17 @@ internal fun App() {
             SettingsHomeScreen(
                 uiModel = uiModel,
                 onBackClick = { navigationViewModel.onEvent(NavigationEvent.NavigateTo(Route.Chat.value)) },
-                onOpenProvider = { navigationViewModel.onEvent(NavigationEvent.NavigateTo(Route.Model.value)) },
+                onOpenProvider = { provider -> 
+                    settingsViewModel.onEvent(SettingsEvent.UpdateProvider(provider))
+                    navigationViewModel.onEvent(NavigationEvent.NavigateTo(Route.Model.value))
+                },
                 onOpenRuntime = { navigationViewModel.onEvent(NavigationEvent.NavigateTo(Route.Runtime.value)) },
                 onOpenOssLicenses = { navigationViewModel.onEvent(NavigationEvent.NavigateTo(Route.OssLicensesList.value)) },
-                onProviderChange = { settingsViewModel.onEvent(SettingsEvent.UpdateProvider(it)) },
+                onProviderEnabledChange = { provider, enabled ->
+                    settingsViewModel.onEvent(SettingsEvent.UpdateProviderEnabled(provider, enabled))
+                },
                 onRuntimeChange = { settingsViewModel.onEvent(SettingsEvent.UpdateRuntimePreset(it)) },
+                enabledProviders = settingsState.enabledProviders
             )
         }
 

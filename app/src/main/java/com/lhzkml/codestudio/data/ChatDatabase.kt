@@ -17,7 +17,7 @@ import com.lhzkml.codestudio.data.entity.GlobalSettingsEntity
         SettingsEntity::class,
         GlobalSettingsEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 internal abstract class ChatDatabase : RoomDatabase() {

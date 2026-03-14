@@ -48,6 +48,18 @@ internal class SettingsRepository @Inject constructor(
     val presetIdFlow: Flow<String> = settingsDao.getGlobalSettingsFlow()
         .map { it?.runtimePresetId ?: "graph-tools-sequential" }
     
+    // 启用的供应商列表
+    val enabledProvidersFlow: Flow<Set<String>> = settingsDao.getGlobalSettingsFlow()
+        .map { globalSettings ->
+            val enabledStr = globalSettings?.enabledProviders ?: ""
+            if (enabledStr.isBlank()) {
+                // 默认启用所有供应商
+                Provider.entries.filter { it.isSupportedOnAndroid }.map { it.name }.toSet()
+            } else {
+                enabledStr.split(",").filter { it.isNotBlank() }.toSet()
+            }
+        }
+    
     suspend fun updateSettings(settings: StoredSettings) {
         // 更新供应商配置
         settingsDao.insertProviderSettings(
@@ -64,6 +76,7 @@ internal class SettingsRepository @Inject constructor(
         val globalSettings = settingsDao.getGlobalSettings() ?: GlobalSettingsEntity(
             id = 1,
             currentProvider = settings.providerName,
+            enabledProviders = Provider.entries.filter { it.isSupportedOnAndroid }.joinToString(",") { it.name },
             systemPrompt = settings.systemPrompt,
             temperature = settings.temperature,
             maxIterations = settings.maxIterations,
@@ -83,6 +96,7 @@ internal class SettingsRepository @Inject constructor(
         val globalSettings = settingsDao.getGlobalSettings() ?: GlobalSettingsEntity(
             id = 1,
             currentProvider = providerName,
+            enabledProviders = Provider.entries.filter { it.isSupportedOnAndroid }.joinToString(",") { it.name },
             systemPrompt = "",
             temperature = "0.2",
             maxIterations = "50",
@@ -98,6 +112,7 @@ internal class SettingsRepository @Inject constructor(
         val globalSettings = settingsDao.getGlobalSettings() ?: GlobalSettingsEntity(
             id = 1,
             currentProvider = Provider.SILICONFLOW.name,
+            enabledProviders = Provider.entries.filter { it.isSupportedOnAndroid }.joinToString(",") { it.name },
             systemPrompt = "",
             temperature = "0.2",
             maxIterations = "50",
@@ -106,6 +121,22 @@ internal class SettingsRepository @Inject constructor(
         
         settingsDao.insertGlobalSettings(
             globalSettings.copy(runtimePresetId = presetId)
+        )
+    }
+    
+    suspend fun updateEnabledProviders(enabledProviders: Set<String>) {
+        val globalSettings = settingsDao.getGlobalSettings() ?: GlobalSettingsEntity(
+            id = 1,
+            currentProvider = Provider.SILICONFLOW.name,
+            enabledProviders = enabledProviders.joinToString(","),
+            systemPrompt = "",
+            temperature = "0.2",
+            maxIterations = "50",
+            runtimePresetId = "graph-tools-sequential"
+        )
+        
+        settingsDao.insertGlobalSettings(
+            globalSettings.copy(enabledProviders = enabledProviders.joinToString(","))
         )
     }
     

@@ -36,6 +36,9 @@ internal data class GlobalSettingsEntity(
     @ColumnInfo(name = "current_provider")
     val currentProvider: String,
     
+    @ColumnInfo(name = "enabled_providers")
+    val enabledProviders: String, // 逗号分隔的供应商名称列表
+    
     @ColumnInfo(name = "system_prompt")
     val systemPrompt: String,
     

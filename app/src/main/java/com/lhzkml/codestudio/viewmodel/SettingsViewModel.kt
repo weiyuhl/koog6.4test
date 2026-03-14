@@ -30,6 +30,7 @@ internal data class SettingsUiState(
     val systemPrompt: String = "",
     val temperature: String = "0.2",
     val maxIterations: String = "50",
+    val enabledProviders: Set<String> = emptySet(),
     val balanceInfo: com.lhzkml.codestudio.ui.model.BalanceDisplayInfo? = null,
     val isCheckingBalance: Boolean = false,
     val formErrors: FormErrors = FormErrors(),
@@ -102,6 +103,7 @@ internal sealed interface SettingsEvent {
     data class UpdateSystemPrompt(val value: String) : SettingsEvent
     data class UpdateTemperature(val value: String) : SettingsEvent
     data class UpdateMaxIterations(val value: String) : SettingsEvent
+    data class UpdateProviderEnabled(val provider: Provider, val enabled: Boolean) : SettingsEvent
     data object CheckBalance : SettingsEvent
     data object LoadOpenRouterKeyInfo : SettingsEvent
     data object LoadAvailableModels : SettingsEvent
@@ -155,6 +157,12 @@ internal class SettingsViewModel @Inject constructor(
                 _uiState.update { it.copy(runtimePreset = preset) }
             }
         }
+        
+        viewModelScope.launch {
+            settingsRepository.enabledProvidersFlow.collect { enabledProviders ->
+                _uiState.update { it.copy(enabledProviders = enabledProviders) }
+            }
+        }
     }
     
     fun onEvent(event: SettingsEvent) {
@@ -168,6 +176,7 @@ internal class SettingsViewModel @Inject constructor(
             is SettingsEvent.UpdateSystemPrompt -> updateSystemPrompt(event.value)
             is SettingsEvent.UpdateTemperature -> updateTemperature(event.value)
             is SettingsEvent.UpdateMaxIterations -> updateMaxIterations(event.value)
+            is SettingsEvent.UpdateProviderEnabled -> updateProviderEnabled(event.provider, event.enabled)
             is SettingsEvent.CheckBalance -> checkBalance()
             is SettingsEvent.LoadOpenRouterKeyInfo -> loadOpenRouterKeyInfo()
             is SettingsEvent.LoadAvailableModels -> loadAvailableModels()
@@ -268,6 +277,18 @@ internal class SettingsViewModel @Inject constructor(
             )
         }
         persistSettings()
+    }
+    
+    private fun updateProviderEnabled(provider: Provider, enabled: Boolean) {
+        viewModelScope.launch {
+            val currentEnabled = _uiState.value.enabledProviders.toMutableSet()
+            if (enabled) {
+                currentEnabled.add(provider.name)
+            } else {
+                currentEnabled.remove(provider.name)
+            }
+            settingsRepository.updateEnabledProviders(currentEnabled)
+        }
     }
     
     private fun persistSettings() {
