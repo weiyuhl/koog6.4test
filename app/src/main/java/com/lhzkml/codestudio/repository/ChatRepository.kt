@@ -22,7 +22,8 @@ internal interface ChatRepository {
 }
 
 internal class ChatRepositoryImpl(
-    private val database: ChatDatabase
+    private val database: ChatDatabase,
+    private val settingsDataStore: com.lhzkml.codestudio.data.SettingsDataStore
 ) : ChatRepository {
 
     private var currentSessionId = "default_session"
@@ -35,11 +36,9 @@ internal class ChatRepositoryImpl(
         .getAllSessionsFlow()
         .map { entities -> entities.map { it.toChatSession() } }
 
-    init {
-        // Ensure session exists on initialization
-    }
-
     override suspend fun loadMessages(): List<ChatMessage> {
+        // 先从 DataStore 加载当前会话 ID
+        currentSessionId = settingsDataStore.currentSessionIdFlow.first()
         ensureSessionExists(currentSessionId)
         return database.chatMessageDao()
             .getMessages(currentSessionId)
@@ -69,12 +68,14 @@ internal class ChatRepositoryImpl(
             )
         )
         currentSessionId = sessionId
+        settingsDataStore.updateCurrentSessionId(sessionId)
         return sessionId
     }
     
     override suspend fun switchSession(sessionId: String) {
         ensureSessionExists(sessionId)
         currentSessionId = sessionId
+        settingsDataStore.updateCurrentSessionId(sessionId)
     }
     
     override suspend fun deleteSession(sessionId: String) {
@@ -85,6 +86,7 @@ internal class ChatRepositoryImpl(
             currentSessionId = sessions.firstOrNull()?.id ?: run {
                 createNewSession()
             }
+            settingsDataStore.updateCurrentSessionId(currentSessionId)
         }
     }
     

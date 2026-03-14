@@ -27,6 +27,7 @@ internal class SettingsDataStore(
         val TEMPERATURE = stringPreferencesKey("temperature")
         val MAX_ITERATIONS = stringPreferencesKey("max_iterations")
         val RUNTIME_PRESET_ID = stringPreferencesKey("runtime_preset_id")
+        val CURRENT_SESSION_ID = stringPreferencesKey("current_session_id")
     }
     
     val settingsFlow: Flow<StoredSettings> = dataStore.data.map { preferences ->
@@ -46,6 +47,10 @@ internal class SettingsDataStore(
         preferences[Keys.RUNTIME_PRESET_ID]
     }
     
+    val currentSessionIdFlow: Flow<String> = dataStore.data.map { preferences ->
+        preferences[Keys.CURRENT_SESSION_ID] ?: "default_session"
+    }
+    
     suspend fun updateSettings(settings: StoredSettings) {
         dataStore.edit { preferences ->
             preferences[Keys.PROVIDER_NAME] = settings.providerName
@@ -62,6 +67,12 @@ internal class SettingsDataStore(
     suspend fun updatePresetId(presetId: String) {
         dataStore.edit { preferences ->
             preferences[Keys.RUNTIME_PRESET_ID] = presetId
+        }
+    }
+    
+    suspend fun updateCurrentSessionId(sessionId: String) {
+        dataStore.edit { preferences ->
+            preferences[Keys.CURRENT_SESSION_ID] = sessionId
         }
     }
 }

@@ -51,8 +51,9 @@ internal object AppModule {
     @Provides
     @Singleton
     internal fun provideChatRepository(
-        database: ChatDatabase
+        database: ChatDatabase,
+        settingsDataStore: SettingsDataStore
     ): ChatRepository {
-        return ChatRepositoryImpl(database)
+        return ChatRepositoryImpl(database, settingsDataStore)
     }
 }
