@@ -4,49 +4,100 @@ import com.lhzkml.codestudio.data.ChatDatabase
 import com.lhzkml.codestudio.data.entity.ChatMessageEntity
 import com.lhzkml.codestudio.data.entity.ChatSessionEntity
 import com.lhzkml.codestudio.ChatMessage
+import com.lhzkml.codestudio.ChatSession
 import com.lhzkml.codestudio.MessageRole
 import kotlinx.coroutines.flow.*
 
 
 internal interface ChatRepository {
     val messagesFlow: Flow<List<ChatMessage>>
+    val sessionsFlow: Flow<List<ChatSession>>
     suspend fun loadMessages(): List<ChatMessage>
     suspend fun saveMessages(messages: List<ChatMessage>)
+    suspend fun loadSessions(): List<ChatSession>
+    suspend fun createNewSession(): String
+    suspend fun switchSession(sessionId: String)
+    suspend fun deleteSession(sessionId: String)
+    suspend fun getCurrentSessionId(): String
 }
 
 internal class ChatRepositoryImpl(
     private val database: ChatDatabase
 ) : ChatRepository {
 
-    private val DEFAULT_SESSION_ID = "default_session"
+    private var currentSessionId = "default_session"
     
     override val messagesFlow: Flow<List<ChatMessage>> = database.chatMessageDao()
-        .getMessagesFlow(DEFAULT_SESSION_ID)
+        .getMessagesFlow(currentSessionId)
         .map { entities -> entities.map { it.toChatMessage() } }
+    
+    override val sessionsFlow: Flow<List<ChatSession>> = database.chatSessionDao()
+        .getAllSessionsFlow()
+        .map { entities -> entities.map { it.toChatSession() } }
 
     init {
         // Ensure session exists on initialization
     }
 
     override suspend fun loadMessages(): List<ChatMessage> {
-        ensureSessionExists()
+        ensureSessionExists(currentSessionId)
         return database.chatMessageDao()
-            .getMessages(DEFAULT_SESSION_ID)
+            .getMessages(currentSessionId)
             .map { it.toChatMessage() }
     }
 
     override suspend fun saveMessages(messages: List<ChatMessage>) {
-        ensureSessionExists()
-        val entities = messages.map { it.toEntity(DEFAULT_SESSION_ID) }
-        database.chatMessageDao().replaceMessages(DEFAULT_SESSION_ID, entities)
+        ensureSessionExists(currentSessionId)
+        val entities = messages.map { it.toEntity(currentSessionId) }
+        database.chatMessageDao().replaceMessages(currentSessionId, entities)
     }
     
-    private suspend fun ensureSessionExists() {
-        if (database.chatSessionDao().getSession(DEFAULT_SESSION_ID) == null) {
+    override suspend fun loadSessions(): List<ChatSession> {
+        return database.chatSessionDao()
+            .getAllSessions()
+            .map { it.toChatSession() }
+    }
+    
+    override suspend fun createNewSession(): String {
+        val sessionId = "session_${System.currentTimeMillis()}"
+        val title = "新对话"
+        database.chatSessionDao().insertSession(
+            ChatSessionEntity(
+                id = sessionId,
+                title = title,
+                createdAt = System.currentTimeMillis()
+            )
+        )
+        currentSessionId = sessionId
+        return sessionId
+    }
+    
+    override suspend fun switchSession(sessionId: String) {
+        ensureSessionExists(sessionId)
+        currentSessionId = sessionId
+    }
+    
+    override suspend fun deleteSession(sessionId: String) {
+        database.chatSessionDao().deleteSession(sessionId)
+        // 如果删除的是当前会话，切换到默认会话或创建新会话
+        if (currentSessionId == sessionId) {
+            val sessions = loadSessions()
+            currentSessionId = sessions.firstOrNull()?.id ?: run {
+                createNewSession()
+            }
+        }
+    }
+    
+    override suspend fun getCurrentSessionId(): String {
+        return currentSessionId
+    }
+    
+    private suspend fun ensureSessionExists(sessionId: String) {
+        if (database.chatSessionDao().getSession(sessionId) == null) {
             database.chatSessionDao().insertSession(
                 ChatSessionEntity(
-                    id = DEFAULT_SESSION_ID,
-                    title = "Main Chat",
+                    id = sessionId,
+                    title = if (sessionId == "default_session") "默认对话" else "新对话",
                     createdAt = System.currentTimeMillis()
                 )
             )
@@ -68,6 +119,14 @@ internal class ChatRepositoryImpl(
             role = role.name,
             content = text,
             timestamp = System.currentTimeMillis()
+        )
+    }
+    
+    private fun ChatSessionEntity.toChatSession(): ChatSession {
+        return ChatSession(
+            id = id,
+            title = title,
+            createdAt = createdAt
         )
     }
 }

@@ -18,6 +18,8 @@ import javax.inject.Inject
 
 internal data class ChatUiState(
     val messages: List<ChatMessage> = emptyList(),
+    val sessions: List<ChatSession> = emptyList(),
+    val currentSessionId: String = "",
     val prompt: String = "",
     val isRunning: Boolean = false,
     val provider: Provider = Provider.OPENAI
@@ -26,7 +28,9 @@ internal data class ChatUiState(
 internal sealed interface ChatEvent {
     data class UpdatePrompt(val text: String) : ChatEvent
     data object SendMessage : ChatEvent
-    data object ClearChat : ChatEvent
+    data object NewChat : ChatEvent
+    data class SwitchSession(val sessionId: String) : ChatEvent
+    data class DeleteSession(val sessionId: String) : ChatEvent
 }
 
 @HiltViewModel
@@ -43,14 +47,23 @@ internal class ChatViewModel @Inject constructor(
     
     init {
         loadMessages()
+        loadSessions()
         observeSettings()
     }
     
     private fun loadMessages() {
         viewModelScope.launch {
             val messages = chatRepository.loadMessages()
+            val currentSessionId = chatRepository.getCurrentSessionId()
             nextMessageId = (messages.maxOfOrNull { it.id } ?: 0L) + 1L
-            _uiState.update { it.copy(messages = messages) }
+            _uiState.update { it.copy(messages = messages, currentSessionId = currentSessionId) }
+        }
+    }
+    
+    private fun loadSessions() {
+        viewModelScope.launch {
+            val sessions = chatRepository.loadSessions()
+            _uiState.update { it.copy(sessions = sessions) }
         }
     }
     
@@ -69,7 +82,9 @@ internal class ChatViewModel @Inject constructor(
         when (event) {
             is ChatEvent.UpdatePrompt -> updatePrompt(event.text)
             is ChatEvent.SendMessage -> sendMessage()
-            is ChatEvent.ClearChat -> clearChat()
+            is ChatEvent.NewChat -> newChat()
+            is ChatEvent.SwitchSession -> switchSession(event.sessionId)
+            is ChatEvent.DeleteSession -> deleteSession(event.sessionId)
         }
     }
     
@@ -156,10 +171,32 @@ internal class ChatViewModel @Inject constructor(
         }
     }
     
-    private fun clearChat() {
-        _uiState.update { it.copy(messages = emptyList()) }
-        persistMessages()
-        addMessage(MessageRole.System, "对话已清空。现在可以重新开始聊天", "新对话")
+    private fun newChat() {
+        viewModelScope.launch {
+            val sessionId = chatRepository.createNewSession()
+            _uiState.update { it.copy(messages = emptyList(), currentSessionId = sessionId) }
+            loadSessions()
+        }
+    }
+    
+    private fun switchSession(sessionId: String) {
+        viewModelScope.launch {
+            chatRepository.switchSession(sessionId)
+            val messages = chatRepository.loadMessages()
+            nextMessageId = (messages.maxOfOrNull { it.id } ?: 0L) + 1L
+            _uiState.update { it.copy(messages = messages, currentSessionId = sessionId) }
+        }
+    }
+    
+    private fun deleteSession(sessionId: String) {
+        viewModelScope.launch {
+            chatRepository.deleteSession(sessionId)
+            val currentSessionId = chatRepository.getCurrentSessionId()
+            val messages = chatRepository.loadMessages()
+            nextMessageId = (messages.maxOfOrNull { it.id } ?: 0L) + 1L
+            _uiState.update { it.copy(messages = messages, currentSessionId = currentSessionId) }
+            loadSessions()
+        }
     }
     
     private fun addMessage(role: MessageRole, text: String, label: String? = null, isStreaming: Boolean = false): Long {

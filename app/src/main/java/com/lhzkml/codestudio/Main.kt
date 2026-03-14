@@ -80,29 +80,52 @@ internal fun App() {
                                 )
 
                                 SideItem(
-                                    icon = { BasicText(text = "💬") },
-                                    label = { BasicText(text = "聊天", style = TextStyle(fontSize = 16.sp)) },
-                                    selected = true,
-                                    onClick = {
-                                        navigationViewModel.onEvent(NavigationEvent.NavigateTo(Route.Chat.value))
-                                        scope.launch { sideState.close() }
-                                    },
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-                                )
-
-                                SideItem(
-                                    icon = { BasicText(text = "🗑️") },
-                                    label = { BasicText(text = "清空对话", style = TextStyle(fontSize = 16.sp)) },
+                                    icon = { BasicText(text = "➕") },
+                                    label = { BasicText(text = "新建对话", style = TextStyle(fontSize = 16.sp)) },
                                     selected = false,
                                     onClick = {
-                                        chatViewModel.onEvent(ChatEvent.ClearChat)
+                                        chatViewModel.onEvent(ChatEvent.NewChat)
                                         scope.launch { sideState.close() }
                                     },
                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
                                 )
                             }
 
-                            Spacer(modifier = Modifier.weight(1f))
+                            // 历史会话列表
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f)
+                                    .padding(top = 12.dp)
+                            ) {
+                                BasicText(
+                                    text = "历史对话",
+                                    style = TextStyle(
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Color(0xFF999999)
+                                    ),
+                                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+                                )
+                                
+                                chatState.sessions.forEach { session ->
+                                    SideItem(
+                                        icon = { BasicText(text = "💬") },
+                                        label = { 
+                                            BasicText(
+                                                text = session.title,
+                                                style = TextStyle(fontSize = 15.sp)
+                                            )
+                                        },
+                                        selected = session.id == chatState.currentSessionId,
+                                        onClick = {
+                                            chatViewModel.onEvent(ChatEvent.SwitchSession(session.id))
+                                            scope.launch { sideState.close() }
+                                        },
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                                    )
+                                }
+                            }
 
                             Column(
                                 modifier = Modifier.padding(bottom = 32.dp)

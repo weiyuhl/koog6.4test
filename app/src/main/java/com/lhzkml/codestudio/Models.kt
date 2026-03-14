@@ -27,6 +27,12 @@ internal data class ChatMessage(
     val isStreaming: Boolean = false,
 )
 
+internal data class ChatSession(
+    val id: String,
+    val title: String,
+    val createdAt: Long,
+)
+
 // 数据存储模型
 data class StoredSettings(
     val providerName: String,
