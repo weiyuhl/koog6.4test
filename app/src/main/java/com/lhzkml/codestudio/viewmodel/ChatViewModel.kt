@@ -47,23 +47,23 @@ internal class ChatViewModel @Inject constructor(
     
     init {
         loadMessages()
-        loadSessions()
+        observeSessions()
         observeSettings()
     }
     
     private fun loadMessages() {
         viewModelScope.launch {
             val messages = chatRepository.loadMessages()
-            val currentSessionId = chatRepository.getCurrentSessionId()
             nextMessageId = (messages.maxOfOrNull { it.id } ?: 0L) + 1L
-            _uiState.update { it.copy(messages = messages, currentSessionId = currentSessionId) }
+            _uiState.update { it.copy(messages = messages) }
         }
     }
     
-    private fun loadSessions() {
+    private fun observeSessions() {
         viewModelScope.launch {
-            val sessions = chatRepository.loadSessions()
-            _uiState.update { it.copy(sessions = sessions) }
+            chatRepository.sessionsFlow.collect { sessions ->
+                _uiState.update { it.copy(sessions = sessions) }
+            }
         }
     }
     
@@ -97,11 +97,6 @@ internal class ChatViewModel @Inject constructor(
         val userPrompt = currentState.prompt.trim()
         
         if (userPrompt.isBlank() || currentState.isRunning) return
-        
-        // 用户发送第一条消息时，保存当前会话 ID
-        viewModelScope.launch {
-            chatRepository.saveCurrentSessionId()
-        }
         
         addMessage(MessageRole.User, userPrompt)
         val assistantId = addMessage(MessageRole.Assistant, STREAMING_PLACEHOLDER, currentState.provider.displayName, isStreaming = true)
@@ -177,18 +172,13 @@ internal class ChatViewModel @Inject constructor(
     }
     
     private fun newChat() {
-        viewModelScope.launch {
-            val currentMessages = _uiState.value.messages
-            
-            // 如果当前会话已经有消息，才创建新会话
-            // 如果当前会话是空的，直接清空即可，不创建新会话
-            if (currentMessages.isNotEmpty()) {
-                val sessionId = chatRepository.createNewSession()
-                _uiState.update { it.copy(messages = emptyList(), currentSessionId = sessionId) }
-                loadSessions()
-            } else {
-                // 当前会话已经是空的，不需要创建新会话
-                _uiState.update { it.copy(messages = emptyList()) }
+        val currentMessages = _uiState.value.messages
+        
+        if (currentMessages.isNotEmpty()) {
+            viewModelScope.launch {
+                chatRepository.saveMessages(currentMessages)
+                chatRepository.resetToBlankState()
+                _uiState.update { it.copy(messages = emptyList(), currentSessionId = "") }
             }
         }
     }
@@ -205,11 +195,7 @@ internal class ChatViewModel @Inject constructor(
     private fun deleteSession(sessionId: String) {
         viewModelScope.launch {
             chatRepository.deleteSession(sessionId)
-            val currentSessionId = chatRepository.getCurrentSessionId()
-            val messages = chatRepository.loadMessagesForSession(currentSessionId)
-            nextMessageId = (messages.maxOfOrNull { it.id } ?: 0L) + 1L
-            _uiState.update { it.copy(messages = messages, currentSessionId = currentSessionId) }
-            loadSessions()
+            _uiState.update { it.copy(messages = emptyList(), currentSessionId = "") }
         }
     }
     

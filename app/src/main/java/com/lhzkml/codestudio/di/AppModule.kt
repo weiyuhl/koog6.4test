@@ -36,7 +36,7 @@ internal object AppModule {
             ChatDatabase::class.java,
             "chat_studio.db"
         )
-        .fallbackToDestructiveMigration()
+        .fallbackToDestructiveMigration(true)
         .build()
     }
     
@@ -51,9 +51,8 @@ internal object AppModule {
     @Provides
     @Singleton
     internal fun provideChatRepository(
-        database: ChatDatabase,
-        settingsDataStore: SettingsDataStore
+        database: ChatDatabase
     ): ChatRepository {
-        return ChatRepositoryImpl(database, settingsDataStore)
+        return ChatRepositoryImpl(database)
     }
 }
