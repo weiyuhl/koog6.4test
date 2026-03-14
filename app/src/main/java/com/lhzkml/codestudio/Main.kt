@@ -26,6 +26,9 @@ import com.lhzkml.codestudio.components.SideValue
 import com.lhzkml.codestudio.viewmodel.*
 import com.lhzkml.codestudio.ui.model.*
 import com.lhzkml.codestudio.oss.*
+import com.lhzkml.codestudio.settings.SettingsHomeScreen
+import com.lhzkml.codestudio.settings.ProviderSettingsScreen
+import com.lhzkml.codestudio.settings.RuntimeSettingsScreen
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
