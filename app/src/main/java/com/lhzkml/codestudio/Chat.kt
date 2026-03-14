@@ -140,41 +140,88 @@ private fun MessageBubble(message: ChatMessage) {
         MessageRole.Assistant -> Color(0xFF34C759)
         MessageRole.System -> Color(0xFFFF9500)
     }
+    
+    val isUser = message.role == MessageRole.User
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
     ) {
-        Box(
-            modifier = Modifier
-                .size(36.dp)
-                .background(roleColor, CircleShape),
-            contentAlignment = Alignment.Center
+        Row(
+            modifier = Modifier.fillMaxWidth(if (isUser) 0.85f else 1f),
+            horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
         ) {
-            Text(
-                text = roleLabel.first().toString(),
-                fontSize = 16.sp,
-                color = Color.White,
-                fontWeight = FontWeight.Bold
-            )
-        }
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = roleLabel,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF333333)
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            SelectionContainer {
-                Text(
-                    text = message.text,
-                    fontSize = 15.sp,
-                    color = Color(0xFF333333),
-                    lineHeight = 22.sp
-                )
+            if (isUser) {
+                // 用户消息：内容在左，头像在右
+                Column(
+                    modifier = Modifier.weight(1f),
+                    horizontalAlignment = Alignment.End
+                ) {
+                    Text(
+                        text = roleLabel,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF333333)
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    SelectionContainer {
+                        Text(
+                            text = message.text,
+                            fontSize = 15.sp,
+                            color = Color(0xFF333333),
+                            lineHeight = 22.sp
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.size(12.dp))
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(roleColor, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = roleLabel.first().toString(),
+                        fontSize = 16.sp,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            } else {
+                // AI/系统消息：头像在左，内容在右
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(roleColor, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = roleLabel.first().toString(),
+                        fontSize = 16.sp,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Spacer(modifier = Modifier.size(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = roleLabel,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF333333)
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    SelectionContainer {
+                        Text(
+                            text = message.text,
+                            fontSize = 15.sp,
+                            color = Color(0xFF333333),
+                            lineHeight = 22.sp
+                        )
+                    }
+                }
             }
         }
     }
