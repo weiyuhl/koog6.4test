@@ -52,6 +52,8 @@ import io.noties.markwon.Markwon
 import io.noties.markwon.ext.strikethrough.StrikethroughPlugin
 import io.noties.markwon.ext.tables.TablePlugin
 import io.noties.markwon.ext.tasklist.TaskListPlugin
+import io.noties.markwon.ext.latex.JLatexMathPlugin
+import io.noties.markwon.inlineparser.MarkwonInlineParserPlugin
 import io.noties.markwon.html.HtmlPlugin
 import io.noties.markwon.image.ImagesPlugin
 import io.noties.markwon.linkify.LinkifyPlugin
@@ -292,6 +294,8 @@ private fun MarkdownText(
     val context = LocalContext.current
     val markwon = remember {
         Markwon.builder(context)
+            .usePlugin(MarkwonInlineParserPlugin.create())  // 内联解析器（LaTeX 需要）
+            .usePlugin(JLatexMathPlugin.create(15f))  // LaTeX 数学公式支持，字体大小 15sp
             .usePlugin(StrikethroughPlugin.create())  // 删除线支持 ~~text~~
             .usePlugin(TablePlugin.create(context))  // 表格支持
             .usePlugin(TaskListPlugin.create(context))  // 任务列表支持 - [ ] 和 - [x]
