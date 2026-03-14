@@ -19,6 +19,7 @@ internal interface ChatRepository {
     suspend fun switchSession(sessionId: String)
     suspend fun deleteSession(sessionId: String)
     suspend fun getCurrentSessionId(): String
+    suspend fun saveCurrentSessionId()
 }
 
 internal class ChatRepositoryImpl(
@@ -38,7 +39,25 @@ internal class ChatRepositoryImpl(
 
     override suspend fun loadMessages(): List<ChatMessage> {
         // 先从 DataStore 加载当前会话 ID
-        currentSessionId = settingsDataStore.currentSessionIdFlow.first()
+        val savedSessionId = settingsDataStore.currentSessionIdFlow.first()
+        
+        // 检查保存的会话是否存在
+        val sessionExists = database.chatSessionDao().getSession(savedSessionId) != null
+        
+        if (!sessionExists) {
+            // 如果保存的会话不存在，创建新会话但不保存 ID
+            currentSessionId = "session_${System.currentTimeMillis()}"
+            database.chatSessionDao().insertSession(
+                ChatSessionEntity(
+                    id = currentSessionId,
+                    title = "新对话",
+                    createdAt = System.currentTimeMillis()
+                )
+            )
+            return emptyList()
+        }
+        
+        currentSessionId = savedSessionId
         ensureSessionExists(currentSessionId)
         return database.chatMessageDao()
             .getMessages(currentSessionId)
@@ -68,7 +87,7 @@ internal class ChatRepositoryImpl(
             )
         )
         currentSessionId = sessionId
-        settingsDataStore.updateCurrentSessionId(sessionId)
+        // 新建对话时不立即保存会话 ID，等用户发送消息时再保存
         return sessionId
     }
     
@@ -92,6 +111,10 @@ internal class ChatRepositoryImpl(
     
     override suspend fun getCurrentSessionId(): String {
         return currentSessionId
+    }
+    
+    override suspend fun saveCurrentSessionId() {
+        settingsDataStore.updateCurrentSessionId(currentSessionId)
     }
     
     private suspend fun ensureSessionExists(sessionId: String) {

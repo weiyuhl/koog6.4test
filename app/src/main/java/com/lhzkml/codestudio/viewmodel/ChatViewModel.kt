@@ -98,6 +98,11 @@ internal class ChatViewModel @Inject constructor(
         
         if (userPrompt.isBlank() || currentState.isRunning) return
         
+        // 用户发送第一条消息时，保存当前会话 ID
+        viewModelScope.launch {
+            chatRepository.saveCurrentSessionId()
+        }
+        
         addMessage(MessageRole.User, userPrompt)
         val assistantId = addMessage(MessageRole.Assistant, STREAMING_PLACEHOLDER, currentState.provider.displayName, isStreaming = true)
         
