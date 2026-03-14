@@ -41,7 +41,11 @@ internal data class SettingsUiState(
     val modelFilterFree: Boolean? = null,
     val modelFilterInputModalities: Set<String> = emptySet(),
     val modelFilterOutputModalities: Set<String> = emptySet(),
-    val modelSortBy: ModelSortOption = ModelSortOption.NEWEST
+    val modelSortBy: ModelSortOption = ModelSortOption.NEWEST,
+    val siliconFlowModels: List<SiliconFlowModelInfo> = emptyList(),
+    val isLoadingSiliconFlowModels: Boolean = false,
+    val siliconFlowModelSearchQuery: String = "",
+    val siliconFlowModelFilterType: String? = null
 )
 
 internal data class OpenRouterKeyInfo(
@@ -75,6 +79,14 @@ internal data class OpenRouterModelInfo(
     val topProvider: String?
 )
 
+internal data class SiliconFlowModelInfo(
+    val id: String,
+    val name: String?,
+    val contextLength: Int?,
+    val maxOutputTokens: Int?,
+    val description: String?
+)
+
 internal enum class ModelSortOption {
     NEWEST,
     PRICE_LOW_TO_HIGH,
@@ -101,6 +113,9 @@ internal sealed interface SettingsEvent {
     data class ToggleInputModality(val modality: String) : SettingsEvent
     data class ToggleOutputModality(val modality: String) : SettingsEvent
     data class UpdateModelSortBy(val sortBy: ModelSortOption) : SettingsEvent
+    data object LoadSiliconFlowModels : SettingsEvent
+    data class UpdateSiliconFlowModelSearchQuery(val query: String) : SettingsEvent
+    data class UpdateSiliconFlowModelFilterType(val type: String?) : SettingsEvent
 }
 
 @HiltViewModel
@@ -164,6 +179,9 @@ internal class SettingsViewModel @Inject constructor(
             is SettingsEvent.ToggleInputModality -> toggleInputModality(event.modality)
             is SettingsEvent.ToggleOutputModality -> toggleOutputModality(event.modality)
             is SettingsEvent.UpdateModelSortBy -> updateModelSortBy(event.sortBy)
+            is SettingsEvent.LoadSiliconFlowModels -> loadSiliconFlowModels()
+            is SettingsEvent.UpdateSiliconFlowModelSearchQuery -> updateSiliconFlowModelSearchQuery(event.query)
+            is SettingsEvent.UpdateSiliconFlowModelFilterType -> updateSiliconFlowModelFilterType(event.type)
         }
     }
     
@@ -707,6 +725,74 @@ internal class SettingsViewModel @Inject constructor(
                 it.contextLength ?: Int.MAX_VALUE 
             }
         }
+    }
+    
+    private fun loadSiliconFlowModels() {
+        viewModelScope.launch {
+            val state = _uiState.value
+            
+            if (state.apiKey.isBlank()) {
+                return@launch
+            }
+            
+            _uiState.update { it.copy(isLoadingSiliconFlowModels = true, siliconFlowModels = emptyList()) }
+            
+            try {
+                val chatService = com.lhzkml.codestudio.service.ChatService()
+                val client = chatService.createClient(
+                    provider = state.provider,
+                    apiKey = state.apiKey,
+                    baseUrl = state.baseUrl,
+                    extraConfig = state.extraConfig
+                )
+                
+                val models = client.listModels()
+                val modelInfos = models.map { model ->
+                    SiliconFlowModelInfo(
+                        id = model.id,
+                        name = model.displayName,
+                        contextLength = model.contextLength,
+                        maxOutputTokens = model.maxOutputTokens,
+                        description = model.description
+                    )
+                }
+                _uiState.update { it.copy(siliconFlowModels = modelInfos, isLoadingSiliconFlowModels = false) }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(siliconFlowModels = emptyList(), isLoadingSiliconFlowModels = false) }
+            }
+        }
+    }
+    
+    private fun updateSiliconFlowModelSearchQuery(query: String) {
+        _uiState.update { it.copy(siliconFlowModelSearchQuery = query) }
+    }
+    
+    private fun updateSiliconFlowModelFilterType(type: String?) {
+        _uiState.update { it.copy(siliconFlowModelFilterType = type) }
+    }
+    
+    fun getFilteredSiliconFlowModels(): List<SiliconFlowModelInfo> {
+        val state = _uiState.value
+        var filtered = state.siliconFlowModels
+        
+        // 搜索筛选
+        if (state.siliconFlowModelSearchQuery.isNotBlank()) {
+            val query = state.siliconFlowModelSearchQuery.lowercase()
+            filtered = filtered.filter { model ->
+                model.id.lowercase().contains(query) ||
+                model.name?.lowercase()?.contains(query) == true ||
+                model.description?.lowercase()?.contains(query) == true
+            }
+        }
+        
+        // 类型筛选
+        state.siliconFlowModelFilterType?.let { type ->
+            filtered = filtered.filter { model ->
+                model.id.lowercase().contains(type.lowercase())
+            }
+        }
+        
+        return filtered
     }
     
     fun toUiModel(): SettingsUiModel = _uiState.value.toUiModel()

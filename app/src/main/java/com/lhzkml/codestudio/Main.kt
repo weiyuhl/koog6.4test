@@ -223,7 +223,14 @@ internal fun App() {
                 modelFilterOutputModalities = settingsState.modelFilterOutputModalities,
                 onToggleOutputModality = { settingsViewModel.onEvent(SettingsEvent.ToggleOutputModality(it)) },
                 modelSortBy = settingsState.modelSortBy,
-                onModelSortByChange = { settingsViewModel.onEvent(SettingsEvent.UpdateModelSortBy(it)) }
+                onModelSortByChange = { settingsViewModel.onEvent(SettingsEvent.UpdateModelSortBy(it)) },
+                onLoadSiliconFlowModels = { settingsViewModel.onEvent(SettingsEvent.LoadSiliconFlowModels) },
+                siliconFlowModels = settingsViewModel.getFilteredSiliconFlowModels(),
+                isLoadingSiliconFlowModels = settingsState.isLoadingSiliconFlowModels,
+                siliconFlowModelSearchQuery = settingsState.siliconFlowModelSearchQuery,
+                onSiliconFlowModelSearchQueryChange = { settingsViewModel.onEvent(SettingsEvent.UpdateSiliconFlowModelSearchQuery(it)) },
+                siliconFlowModelFilterType = settingsState.siliconFlowModelFilterType,
+                onSiliconFlowModelFilterTypeChange = { settingsViewModel.onEvent(SettingsEvent.UpdateSiliconFlowModelFilterType(it)) }
             )
         }
 

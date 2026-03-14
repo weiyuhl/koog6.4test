@@ -22,6 +22,7 @@ import com.lhzkml.codestudio.settings.provider.deepseek.DeepSeekBalanceCard
 import com.lhzkml.codestudio.settings.provider.openrouter.OpenRouterKeyInfoCard
 import com.lhzkml.codestudio.settings.provider.openrouter.OpenRouterModelsCard
 import com.lhzkml.codestudio.settings.provider.siliconflow.SiliconFlowBalanceCard
+import com.lhzkml.codestudio.settings.provider.siliconflow.SiliconFlowModelsCard
 import com.lhzkml.codestudio.ui.model.ProviderSettingsUiModel
 
 @Composable
@@ -49,7 +50,14 @@ internal fun ProviderSettingsScreen(
     modelFilterOutputModalities: Set<String> = emptySet(),
     onToggleOutputModality: (String) -> Unit = {},
     modelSortBy: com.lhzkml.codestudio.viewmodel.ModelSortOption = com.lhzkml.codestudio.viewmodel.ModelSortOption.NEWEST,
-    onModelSortByChange: (com.lhzkml.codestudio.viewmodel.ModelSortOption) -> Unit = {}
+    onModelSortByChange: (com.lhzkml.codestudio.viewmodel.ModelSortOption) -> Unit = {},
+    onLoadSiliconFlowModels: () -> Unit = {},
+    siliconFlowModels: List<com.lhzkml.codestudio.viewmodel.SiliconFlowModelInfo> = emptyList(),
+    isLoadingSiliconFlowModels: Boolean = false,
+    siliconFlowModelSearchQuery: String = "",
+    onSiliconFlowModelSearchQueryChange: (String) -> Unit = {},
+    siliconFlowModelFilterType: String? = null,
+    onSiliconFlowModelFilterTypeChange: (String?) -> Unit = {}
 ) {
     Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF5F5F5))) {
         Bar(
@@ -161,6 +169,17 @@ internal fun ProviderSettingsScreen(
                             balanceInfo = uiModel.balanceInfo,
                             isChecking = uiModel.isCheckingBalance,
                             onClick = onCheckBalance
+                        )
+                        
+                        SiliconFlowModelsCard(
+                            models = siliconFlowModels,
+                            isLoading = isLoadingSiliconFlowModels,
+                            onClick = onLoadSiliconFlowModels,
+                            onModelSelected = onModelIdChanged,
+                            searchQuery = siliconFlowModelSearchQuery,
+                            onSearchQueryChange = onSiliconFlowModelSearchQueryChange,
+                            filterType = siliconFlowModelFilterType,
+                            onFilterTypeChange = onSiliconFlowModelFilterTypeChange
                         )
                     }
                     else -> {
