@@ -99,6 +99,12 @@ dependencies {
     // Markwon - Markdown 渲染库
     implementation("io.noties.markwon:core:4.6.2")
     implementation("io.noties.markwon:syntax-highlight:4.6.2")
+    implementation("io.noties.markwon:ext-strikethrough:4.6.2")  // 删除线
+    implementation("io.noties.markwon:ext-tables:4.6.2")  // 表格
+    implementation("io.noties.markwon:ext-tasklist:4.6.2")  // 任务列表
+    implementation("io.noties.markwon:html:4.6.2")  // HTML 支持
+    implementation("io.noties.markwon:image:4.6.2")  // 图片支持
+    implementation("io.noties.markwon:linkify:4.6.2")  // 自动链接
     implementation("io.noties:prism4j:2.0.0")
     
     kapt(libs.hilt.compiler)

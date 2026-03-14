@@ -49,6 +49,12 @@ import androidx.compose.ui.unit.sp
 import com.lhzkml.codestudio.components.Bar
 import com.lhzkml.codestudio.components.IconButton
 import io.noties.markwon.Markwon
+import io.noties.markwon.ext.strikethrough.StrikethroughPlugin
+import io.noties.markwon.ext.tables.TablePlugin
+import io.noties.markwon.ext.tasklist.TaskListPlugin
+import io.noties.markwon.html.HtmlPlugin
+import io.noties.markwon.image.ImagesPlugin
+import io.noties.markwon.linkify.LinkifyPlugin
 import android.widget.TextView
 
 @Composable
@@ -285,7 +291,14 @@ private fun MarkdownText(
 ) {
     val context = LocalContext.current
     val markwon = remember {
-        Markwon.create(context)
+        Markwon.builder(context)
+            .usePlugin(StrikethroughPlugin.create())  // 删除线支持 ~~text~~
+            .usePlugin(TablePlugin.create(context))  // 表格支持
+            .usePlugin(TaskListPlugin.create(context))  // 任务列表支持 - [ ] 和 - [x]
+            .usePlugin(HtmlPlugin.create())  // HTML 标签支持
+            .usePlugin(ImagesPlugin.create())  // 图片支持
+            .usePlugin(LinkifyPlugin.create())  // 自动识别链接
+            .build()
     }
     
     AndroidView(
@@ -294,6 +307,8 @@ private fun MarkdownText(
                 textSize = 15f
                 setTextColor(Color(0xFF333333).toArgb())
                 setTextIsSelectable(true)
+                // 设置行间距，让表格和列表更易读
+                setLineSpacing(0f, 1.2f)
             }
         },
         update = { textView ->
