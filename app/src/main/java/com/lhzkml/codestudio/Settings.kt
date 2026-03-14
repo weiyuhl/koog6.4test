@@ -13,18 +13,19 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lhzkml.codestudio.components.Bar
 import com.lhzkml.codestudio.components.DropdownField
-import com.lhzkml.codestudio.components.Text
 import com.lhzkml.codestudio.ui.model.SettingsHomeUiModel
 import com.lhzkml.codestudio.ui.model.ProviderSettingsUiModel
 import com.lhzkml.codestudio.ui.model.RuntimeSettingsUiModel
@@ -58,10 +59,12 @@ internal fun SettingsHomeScreen(
                         .background(Color(0xFFFFEBEE))
                         .padding(16.dp)
                 ) {
-                    Text(
-                        "⚠️ ${settingsSummary(uiModel.errors)}",
-                        fontSize = 14.sp,
-                        color = Color(0xFFC62828)
+                    BasicText(
+                        text = "⚠️ ${settingsSummary(uiModel.errors)}",
+                        style = TextStyle(
+                            fontSize = 14.sp,
+                            color = Color(0xFFC62828)
+                        )
                     )
                 }
             }
@@ -118,22 +121,32 @@ private fun SettingsItem(
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Column {
-            Text(
+            BasicText(
                 text = label,
-                fontSize = 15.sp,
-                color = Color(0xFF333333),
-                fontWeight = FontWeight.Medium
+                style = TextStyle(
+                    fontSize = 15.sp,
+                    color = Color(0xFF333333),
+                    fontWeight = FontWeight.Medium
+                )
             )
             if (value != null) {
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(
+                BasicText(
                     text = value,
-                    fontSize = 13.sp,
-                    color = Color(0xFF999999)
+                    style = TextStyle(
+                        fontSize = 13.sp,
+                        color = Color(0xFF999999)
+                    )
                 )
             }
         }
-        Text(text = "→", fontSize = 16.sp, color = Color(0xFF999999))
+        BasicText(
+            text = "→",
+            style = TextStyle(
+                fontSize = 16.sp,
+                color = Color(0xFF999999)
+            )
+        )
     }
 }
 
@@ -252,23 +265,29 @@ private fun BalanceCheckCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
+            BasicText(
                 text = "账户余额",
-                fontSize = 15.sp,
-                color = Color(0xFF333333),
-                fontWeight = FontWeight.Medium
+                style = TextStyle(
+                    fontSize = 15.sp,
+                    color = Color(0xFF333333),
+                    fontWeight = FontWeight.Medium
+                )
             )
             if (isChecking) {
-                Text(
+                BasicText(
                     text = "查询中...",
-                    fontSize = 14.sp,
-                    color = Color(0xFF999999)
+                    style = TextStyle(
+                        fontSize = 14.sp,
+                        color = Color(0xFF999999)
+                    )
                 )
             } else {
-                Text(
+                BasicText(
                     text = "查询",
-                    fontSize = 14.sp,
-                    color = Color(0xFF2196F3)
+                    style = TextStyle(
+                        fontSize = 14.sp,
+                        color = Color(0xFF2196F3)
+                    )
                 )
             }
         }
@@ -279,10 +298,12 @@ private fun BalanceCheckCard(
             
             if (balanceInfo.errorMessage != null) {
                 // 错误信息
-                Text(
+                BasicText(
                     text = balanceInfo.errorMessage,
-                    fontSize = 14.sp,
-                    color = Color(0xFFE53935)
+                    style = TextStyle(
+                        fontSize = 14.sp,
+                        color = Color(0xFFE53935)
+                    )
                 )
             } else {
                 // 余额详情
@@ -334,17 +355,21 @@ private fun BalanceRow(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
+        BasicText(
             text = label,
-            fontSize = if (isTotal) 14.sp else 13.sp,
-            color = if (isTotal) Color(0xFF333333) else Color(0xFF666666),
-            fontWeight = if (isTotal) FontWeight.Medium else FontWeight.Normal
+            style = TextStyle(
+                fontSize = if (isTotal) 14.sp else 13.sp,
+                color = if (isTotal) Color(0xFF333333) else Color(0xFF666666),
+                fontWeight = if (isTotal) FontWeight.Medium else FontWeight.Normal
+            )
         )
-        Text(
+        BasicText(
             text = value,
-            fontSize = if (isTotal) 16.sp else 14.sp,
-            color = if (isAvailable) Color(0xFF4CAF50) else Color(0xFFE53935),
-            fontWeight = if (isTotal) FontWeight.Bold else FontWeight.Normal
+            style = TextStyle(
+                fontSize = if (isTotal) 16.sp else 14.sp,
+                color = if (isAvailable) Color(0xFF4CAF50) else Color(0xFFE53935),
+                fontWeight = if (isTotal) FontWeight.Bold else FontWeight.Normal
+            )
         )
     }
 }

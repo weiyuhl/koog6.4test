@@ -20,11 +20,11 @@ import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextStyle as ComposeTextStyle
 
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lhzkml.codestudio.components.Bar
-import com.lhzkml.codestudio.components.Text
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.URL
@@ -161,21 +161,25 @@ fun OssLicensesDetailScreen(
                 .padding(16.dp)
         ) {
             // 库名称
-            Text(
+            BasicText(
                 text = entryName,
-                fontSize = 16.sp,
-                color = Color(0xFF333333),
-                fontWeight = FontWeight.Bold,
+                style = ComposeTextStyle(
+                    fontSize = 16.sp,
+                    color = Color(0xFF333333),
+                    fontWeight = FontWeight.Bold
+                ),
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(12.dp))
 
             // 许可来源链接
             if (licenseSourceUrl != null) {
-                Text(
+                BasicText(
                     text = "许可来源：",
-                    fontSize = 13.sp,
-                    color = Color(0xFF666666),
+                    style = ComposeTextStyle(
+                        fontSize = 13.sp,
+                        color = Color(0xFF666666)
+                    ),
                     modifier = Modifier.fillMaxWidth()
                 )
                 BasicText(
@@ -196,17 +200,21 @@ fun OssLicensesDetailScreen(
 
             // 内容显示
             when {
-                isLoading -> Text(
+                isLoading -> BasicText(
                     text = "正在加载许可全文…",
-                    fontSize = 13.sp,
-                    color = Color(0xFF666666),
+                    style = ComposeTextStyle(
+                        fontSize = 13.sp,
+                        color = Color(0xFF666666)
+                    ),
                     modifier = Modifier.fillMaxWidth()
                 )
                 fetchError != null && licenseSourceUrl != null -> {
-                    Text(
+                    BasicText(
                         text = "无法在线获取许可全文。请点击下方链接在浏览器中查看：",
-                        fontSize = 13.sp,
-                        color = Color(0xFF666666),
+                        style = ComposeTextStyle(
+                            fontSize = 13.sp,
+                            color = Color(0xFF666666)
+                        ),
                         modifier = Modifier.fillMaxWidth()
                     )
                     Spacer(modifier = Modifier.height(8.dp))
@@ -225,11 +233,13 @@ fun OssLicensesDetailScreen(
                     )
                 }
                 displayText != null && displayText!!.isNotBlank() -> {
-                    Text(
+                    BasicText(
                         text = "License 全文",
-                        fontSize = 13.sp,
-                        color = Color(0xFF666666),
-                        fontWeight = FontWeight.Medium,
+                        style = ComposeTextStyle(
+                            fontSize = 13.sp,
+                            color = Color(0xFF666666),
+                            fontWeight = FontWeight.Medium
+                        ),
                         modifier = Modifier.fillMaxWidth()
                     )
                     Spacer(modifier = Modifier.height(8.dp))
@@ -242,10 +252,12 @@ fun OssLicensesDetailScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
-                else -> Text(
+                else -> BasicText(
                     text = "无法加载许可内容",
-                    fontSize = 13.sp,
-                    color = Color(0xFF666666),
+                    style = ComposeTextStyle(
+                        fontSize = 13.sp,
+                        color = Color(0xFF666666)
+                    ),
                     modifier = Modifier.fillMaxWidth()
                 )
             }

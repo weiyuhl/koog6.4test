@@ -11,12 +11,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -79,10 +81,12 @@ fun Bar(
                     navigationIcon != null -> navigationIcon()
                     onBackClick != null -> {
                         IconButton(onClick = onBackClick) {
-                            Text(
-                                "←",
-                                fontSize = 24.sp,
-                                color = Color(0xFF333333)
+                            BasicText(
+                                text = "←",
+                                style = TextStyle(
+                                    fontSize = 24.sp,
+                                    color = Color(0xFF333333)
+                                )
                             )
                         }
                     }
@@ -90,11 +94,13 @@ fun Bar(
             }
             
             // 中间：标题
-            Text(
-                title,
-                fontSize = 17.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF333333),
+            BasicText(
+                text = title,
+                style = TextStyle(
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF333333)
+                ),
                 modifier = Modifier.weight(1f).padding(horizontal = 8.dp)
             )
             

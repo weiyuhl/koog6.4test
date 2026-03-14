@@ -45,7 +45,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lhzkml.codestudio.components.Bar
 import com.lhzkml.codestudio.components.IconButton
-import com.lhzkml.codestudio.components.Text
 
 @Composable
 internal fun ChatScreen(
@@ -84,10 +83,12 @@ internal fun ChatScreen(
             title = "Chat",
             navigationIcon = {
                 IconButton(onClick = onMenuClick) {
-                    Text(
-                        "☰",
-                        fontSize = 24.sp,
-                        color = Color(0xFF333333)
+                    BasicText(
+                        text = "☰",
+                        style = TextStyle(
+                            fontSize = 24.sp,
+                            color = Color(0xFF333333)
+                        )
                     )
                 }
             }
@@ -135,20 +136,26 @@ private fun EmptyStateView() {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                "💬",
-                fontSize = 64.sp
+            BasicText(
+                text = "💬",
+                style = TextStyle(
+                    fontSize = 64.sp
+                )
             )
-            Text(
-                "开始对话",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color(0xFF333333)
+            BasicText(
+                text = "开始对话",
+                style = TextStyle(
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFF333333)
+                )
             )
-            Text(
-                "在下方输入消息",
-                fontSize = 14.sp,
-                color = Color(0xFF999999)
+            BasicText(
+                text = "在下方输入消息",
+                style = TextStyle(
+                    fontSize = 14.sp,
+                    color = Color(0xFF999999)
+                )
             )
         }
     }
@@ -189,27 +196,33 @@ private fun MessageBubble(message: ChatMessage) {
                         .background(roleColor, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
+                    BasicText(
                         text = roleLabel.first().toString(),
-                        fontSize = 16.sp,
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold
+                        style = TextStyle(
+                            fontSize = 16.sp,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
                     )
                 }
                 Spacer(modifier = Modifier.size(8.dp))
-                Text(
+                BasicText(
                     text = roleLabel,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF333333)
+                    style = TextStyle(
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF333333)
+                    )
                 )
             } else {
                 // 用户消息：头像在右
-                Text(
+                BasicText(
                     text = roleLabel,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF333333)
+                    style = TextStyle(
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF333333)
+                    )
                 )
                 Spacer(modifier = Modifier.size(8.dp))
                 Box(
@@ -218,11 +231,13 @@ private fun MessageBubble(message: ChatMessage) {
                         .background(roleColor, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
+                    BasicText(
                         text = roleLabel.first().toString(),
-                        fontSize = 16.sp,
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold
+                        style = TextStyle(
+                            fontSize = 16.sp,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
                     )
                 }
             }
@@ -275,15 +290,19 @@ private fun ChatComposer(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Text(
-                    "⏳",
-                    color = Color(0xFF10A37F),
-                    fontSize = 12.sp
+                BasicText(
+                    text = "⏳",
+                    style = TextStyle(
+                        color = Color(0xFF10A37F),
+                        fontSize = 12.sp
+                    )
                 )
-                Text(
-                    "正在生成回复...",
-                    fontSize = 13.sp,
-                    color = Color(0xFF666666)
+                BasicText(
+                    text = "正在生成回复...",
+                    style = TextStyle(
+                        fontSize = 13.sp,
+                        color = Color(0xFF666666)
+                    )
                 )
             }
         }
@@ -318,10 +337,12 @@ private fun ChatComposer(
                         contentAlignment = Alignment.TopStart
                     ) {
                         if (value.isEmpty()) {
-                            Text(
-                                "询问任何问题",
-                                fontSize = 16.sp,
-                                color = Color(0xFF9CA3AF)
+                            BasicText(
+                                text = "询问任何问题",
+                                style = TextStyle(
+                                    fontSize = 16.sp,
+                                    color = Color(0xFF9CA3AF)
+                                )
                             )
                         }
                         innerTextField()
@@ -343,11 +364,13 @@ private fun ChatComposer(
                         .background(Color(0xFFF8F8F8), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        "+",
-                        fontSize = 20.sp,
-                        color = Color(0xFF6B7280),
-                        fontWeight = FontWeight.Medium
+                    BasicText(
+                        text = "+",
+                        style = TextStyle(
+                            fontSize = 20.sp,
+                            color = Color(0xFF6B7280),
+                            fontWeight = FontWeight.Medium
+                        )
                     )
                 }
 
@@ -361,11 +384,13 @@ private fun ChatComposer(
                             CircleShape
                         )
                 ) {
-                    Text(
-                        "↑",
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (sendEnabled) Color.White else Color(0xFF9CA3AF)
+                    BasicText(
+                        text = "↑",
+                        style = TextStyle(
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (sendEnabled) Color.White else Color(0xFF9CA3AF)
+                        )
                     )
                 }
             }

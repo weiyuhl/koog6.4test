@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -12,12 +13,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lhzkml.codestudio.components.Bar
-import com.lhzkml.codestudio.components.Text
 
 @Composable
 fun OssLicensesListScreen(
@@ -49,10 +50,12 @@ fun OssLicensesListScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             if (!hasLicenses && manualList.isEmpty()) {
-                Text(
+                BasicText(
                     text = "许可信息仅在 release 构建中提供。请使用 release 版本查看开源许可。",
-                    fontSize = 14.sp,
-                    color = Color(0xFF666666),
+                    style = TextStyle(
+                        fontSize = 14.sp,
+                        color = Color(0xFF666666)
+                    ),
                     modifier = Modifier.padding(16.dp)
                 )
             } else {
@@ -88,12 +91,20 @@ private fun OssLicenseListItem(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(
+        BasicText(
             text = name,
-            fontSize = 15.sp,
-            color = Color(0xFF333333),
+            style = TextStyle(
+                fontSize = 15.sp,
+                color = Color(0xFF333333)
+            ),
             modifier = Modifier.weight(1f)
         )
-        Text(text = "→", fontSize = 16.sp, color = Color(0xFF999999))
+        BasicText(
+            text = "→",
+            style = TextStyle(
+                fontSize = 16.sp,
+                color = Color(0xFF999999)
+            )
+        )
     }
 }

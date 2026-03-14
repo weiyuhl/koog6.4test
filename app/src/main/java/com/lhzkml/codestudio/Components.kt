@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -18,7 +19,6 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.lhzkml.codestudio.components.Text
 
 @Composable
 internal fun TextField(
@@ -37,10 +37,12 @@ internal fun TextField(
             .background(Colors.Surface, RoundedCornerShape(8.dp))
             .padding(12.dp)
     ) {
-        Text(
+        BasicText(
             text = label,
-            fontSize = 13.sp,
-            color = Colors.OnSurfaceVariant
+            style = TextStyle(
+                fontSize = 13.sp,
+                color = Colors.OnSurfaceVariant
+            )
         )
         Spacer(modifier = Modifier.height(8.dp))
         BasicTextField(
@@ -57,10 +59,12 @@ internal fun TextField(
             visualTransformation = if (secure) PasswordVisualTransformation() else VisualTransformation.None,
             decorationBox = { innerTextField ->
                 if (value.isEmpty() && placeholder.isNotBlank()) {
-                    Text(
-                        placeholder,
-                        fontSize = 15.sp,
-                        color = Colors.OnSurfaceVariant
+                    BasicText(
+                        text = placeholder,
+                        style = TextStyle(
+                            fontSize = 15.sp,
+                            color = Colors.OnSurfaceVariant
+                        )
                     )
                 }
                 innerTextField()
@@ -68,10 +72,12 @@ internal fun TextField(
         )
         if (error != null) {
             Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                error,
-                color = Colors.Error,
-                fontSize = 12.sp
+            BasicText(
+                text = error,
+                style = TextStyle(
+                    color = Colors.Error,
+                    fontSize = 12.sp
+                )
             )
         }
     }

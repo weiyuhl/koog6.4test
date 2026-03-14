@@ -9,22 +9,23 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.lhzkml.codestudio.components.Side
 import com.lhzkml.codestudio.components.SideItem
-import com.lhzkml.codestudio.components.Text
 import com.lhzkml.codestudio.components.rememberSideState
 import com.lhzkml.codestudio.components.SideValue
 import com.lhzkml.codestudio.viewmodel.*
 import com.lhzkml.codestudio.ui.model.*
 import com.lhzkml.codestudio.oss.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
@@ -68,17 +69,19 @@ internal fun App() {
                                 .background(Colors.Surface)
                         ) {
                             Column {
-                                Text(
-                                    "Chat",
-                                    fontSize = 24.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF333333),
+                                BasicText(
+                                    text = "Chat",
+                                    style = TextStyle(
+                                        fontSize = 24.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF333333)
+                                    ),
                                     modifier = Modifier.padding(20.dp)
                                 )
 
                                 SideItem(
-                                    icon = { Text("💬") },
-                                    label = { Text("聊天", fontSize = 16.sp) },
+                                    icon = { BasicText(text = "💬") },
+                                    label = { BasicText(text = "聊天", style = TextStyle(fontSize = 16.sp)) },
                                     selected = true,
                                     onClick = {
                                         navigationViewModel.onEvent(NavigationEvent.NavigateTo(Route.Chat.value))
@@ -88,8 +91,8 @@ internal fun App() {
                                 )
 
                                 SideItem(
-                                    icon = { Text("🗑️") },
-                                    label = { Text("清空对话", fontSize = 16.sp) },
+                                    icon = { BasicText(text = "🗑️") },
+                                    label = { BasicText(text = "清空对话", style = TextStyle(fontSize = 16.sp)) },
                                     selected = false,
                                     onClick = {
                                         chatViewModel.onEvent(ChatEvent.ClearChat)
@@ -108,21 +111,25 @@ internal fun App() {
                                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 20.dp),
                                     verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    Text(
-                                        "消息: ${chatState.messages.size}",
-                                        fontSize = 16.sp,
-                                        color = Color(0xFF666666)
+                                    BasicText(
+                                        text = "消息: ${chatState.messages.size}",
+                                        style = TextStyle(
+                                            fontSize = 16.sp,
+                                            color = Color(0xFF666666)
+                                        )
                                     )
-                                    Text(
-                                        chatState.provider.displayName,
-                                        fontSize = 16.sp,
-                                        color = Color(0xFF666666)
+                                    BasicText(
+                                        text = chatState.provider.displayName,
+                                        style = TextStyle(
+                                            fontSize = 16.sp,
+                                            color = Color(0xFF666666)
+                                        )
                                     )
                                 }
 
                                 SideItem(
-                                    icon = { Text("⚙️") },
-                                    label = { Text("设置", fontSize = 16.sp) },
+                                    icon = { BasicText(text = "⚙️") },
+                                    label = { BasicText(text = "设置", style = TextStyle(fontSize = 16.sp)) },
                                     selected = false,
                                     onClick = {
                                         navigationViewModel.onEvent(NavigationEvent.NavigateTo(Route.Home.value))
