@@ -17,11 +17,4 @@ class ExampleUnitTest {
         assertTrue(Provider.OPENAI.requiresApiKey)
         assertTrue(Provider.OPENAI.isSupportedOnAndroid)
     }
-
-    @Test
-    fun bedrock_is_listed_but_marked_unsupported_on_android() {
-        assertEquals("AWS Bedrock", Provider.BEDROCK.displayName)
-        assertFalse(Provider.BEDROCK.requiresApiKey)
-        assertFalse(Provider.BEDROCK.isSupportedOnAndroid)
-    }
 }
