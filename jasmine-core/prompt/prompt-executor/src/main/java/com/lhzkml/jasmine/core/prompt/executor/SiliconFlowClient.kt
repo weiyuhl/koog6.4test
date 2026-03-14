@@ -10,6 +10,8 @@ import com.lhzkml.jasmine.core.prompt.model.BalanceInfo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
@@ -91,6 +93,48 @@ class SiliconFlowClient(
             } catch (e: Exception) {
                 throw ChatClientException(provider.name, "查询余额失败: ${e.message}", ErrorType.UNKNOWN, cause = e)
             }
+        }
+    }
+
+    /**
+     * 获取模型列表（支持服务端筛选）
+     * @param type 模型类型: text, image, audio, video
+     * @param subType 子类型: chat, embedding, reranker, text-to-image, image-to-image, speech-to-text, text-to-video
+     */
+    suspend fun listModels(type: String? = null, subType: String? = null): List<com.lhzkml.jasmine.core.prompt.model.ModelInfo> {
+        return executeWithRetry(retryConfig) {
+            try {
+                val urlBuilder = StringBuilder("${baseUrl}/v1/models")
+                val params = mutableListOf<String>()
+                
+                type?.let { params.add("type=$it") }
+                subType?.let { params.add("sub_type=$it") }
+                
+                if (params.isNotEmpty()) {
+                    urlBuilder.append("?").append(params.joinToString("&"))
+                }
+                
+                val httpRequest = Request.Builder()
+                    .url(urlBuilder.toString())
+                    .addHeader("Authorization", "Bearer $apiKey")
+                    .get()
+                    .build()
+
+                withContext(Dispatchers.IO) {
+                    val response = httpClient.newCall(httpRequest).execute()
+                    
+                    if (!response.isSuccessful) {
+                        val body = response.body?.string()
+                        throw ChatClientException.fromStatusCode(provider.name, response.code, body)
+                    }
+                    
+                    val body = response.body?.string() ?: return@withContext emptyList()
+                    val root = json.parseToJsonElement(body).jsonObject
+                    val dataArray = root["data"]?.jsonArray ?: return@withContext emptyList()
+                    dataArray.map { parseModelInfoFromJson(it.jsonObject) }
+                }
+            } catch (e: ChatClientException) { throw e }
+            catch (e: Exception) { throw ChatClientException(provider.name, "获取模型列表失败: ${e.message}", ErrorType.UNKNOWN, cause = e) }
         }
     }
 }

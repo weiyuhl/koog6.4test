@@ -211,55 +211,5 @@ private fun ModelInfoItem(
                 )
             )
         }
-        
-        if (model.description != null) {
-            Spacer(modifier = Modifier.height(6.dp))
-            BasicText(
-                text = model.description,
-                style = TextStyle(
-                    fontSize = 12.sp,
-                    color = Color(0xFF666666),
-                    lineHeight = 16.sp
-                ),
-                maxLines = 2
-            )
-        }
-        
-        Spacer(modifier = Modifier.height(6.dp))
-        
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            model.contextLength?.let { length ->
-                ModelInfoChip("上下文: ${formatNumber(length)}")
-            }
-            
-            model.maxOutputTokens?.let { tokens ->
-                ModelInfoChip("输出: ${formatNumber(tokens)}")
-            }
-        }
-    }
-}
-
-@Composable
-private fun ModelInfoChip(
-    text: String,
-    textColor: Color = Color(0xFF666666)
-) {
-    BasicText(
-        text = text,
-        style = TextStyle(
-            fontSize = 11.sp,
-            color = textColor
-        )
-    )
-}
-
-private fun formatNumber(num: Int): String {
-    return when {
-        num >= 1000000 -> "${num / 1000000}M"
-        num >= 1000 -> "${num / 1000}K"
-        else -> num.toString()
     }
 }

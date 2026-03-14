@@ -81,10 +81,7 @@ internal data class OpenRouterModelInfo(
 
 internal data class SiliconFlowModelInfo(
     val id: String,
-    val name: String?,
-    val contextLength: Int?,
-    val maxOutputTokens: Int?,
-    val description: String?
+    val name: String?
 )
 
 internal enum class ModelSortOption {
@@ -746,17 +743,19 @@ internal class SettingsViewModel @Inject constructor(
                     extraConfig = state.extraConfig
                 )
                 
-                val models = client.listModels()
-                val modelInfos = models.map { model ->
-                    SiliconFlowModelInfo(
-                        id = model.id,
-                        name = model.displayName,
-                        contextLength = model.contextLength,
-                        maxOutputTokens = model.maxOutputTokens,
-                        description = model.description
-                    )
+                if (client is com.lhzkml.jasmine.core.prompt.executor.SiliconFlowClient) {
+                    // 使用服务端筛选
+                    val models = client.listModels(type = state.siliconFlowModelFilterType)
+                    val modelInfos = models.map { model ->
+                        SiliconFlowModelInfo(
+                            id = model.id,
+                            name = model.displayName
+                        )
+                    }
+                    _uiState.update { it.copy(siliconFlowModels = modelInfos, isLoadingSiliconFlowModels = false) }
+                } else {
+                    _uiState.update { it.copy(siliconFlowModels = emptyList(), isLoadingSiliconFlowModels = false) }
                 }
-                _uiState.update { it.copy(siliconFlowModels = modelInfos, isLoadingSiliconFlowModels = false) }
             } catch (e: Exception) {
                 _uiState.update { it.copy(siliconFlowModels = emptyList(), isLoadingSiliconFlowModels = false) }
             }
@@ -769,26 +768,20 @@ internal class SettingsViewModel @Inject constructor(
     
     private fun updateSiliconFlowModelFilterType(type: String?) {
         _uiState.update { it.copy(siliconFlowModelFilterType = type) }
+        // 筛选类型改变时重新加载模型（服务端筛选）
+        loadSiliconFlowModels()
     }
     
     fun getFilteredSiliconFlowModels(): List<SiliconFlowModelInfo> {
         val state = _uiState.value
         var filtered = state.siliconFlowModels
         
-        // 搜索筛选
+        // 搜索筛选（本地）
         if (state.siliconFlowModelSearchQuery.isNotBlank()) {
             val query = state.siliconFlowModelSearchQuery.lowercase()
             filtered = filtered.filter { model ->
                 model.id.lowercase().contains(query) ||
-                model.name?.lowercase()?.contains(query) == true ||
-                model.description?.lowercase()?.contains(query) == true
-            }
-        }
-        
-        // 类型筛选
-        state.siliconFlowModelFilterType?.let { type ->
-            filtered = filtered.filter { model ->
-                model.id.lowercase().contains(type.lowercase())
+                model.name?.lowercase()?.contains(query) == true
             }
         }
         
