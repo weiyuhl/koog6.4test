@@ -25,9 +25,16 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
+import kotlinx.coroutines.launch
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
@@ -49,8 +56,25 @@ internal fun ChatScreen(
     onMenuClick: () -> Unit,
 ) {
     val listState = rememberLazyListState()
-    LaunchedEffect(messages.size, isRunning) { 
-        if (messages.isNotEmpty()) listState.animateScrollToItem(messages.lastIndex) 
+    val coroutineScope = rememberCoroutineScope()
+    
+    // 使用 reverseLayout 让最新消息在底部
+    // 监听消息变化并自动滚动到底部
+    LaunchedEffect(messages.size) {
+        if (messages.isNotEmpty()) {
+            // 新消息时，滚动到最后一项（索引 0，因为是 reverseLayout）
+            listState.animateScrollToItem(0)
+        }
+    }
+    
+    // 监听最后一条消息的文本长度变化（流式更新）
+    LaunchedEffect(messages.firstOrNull()?.text?.length) {
+        if (messages.isNotEmpty() && listState.firstVisibleItemIndex == 0) {
+            // 只有当最后一条消息可见时才自动滚动
+            coroutineScope.launch {
+                listState.animateScrollToItem(0)
+            }
+        }
     }
 
     Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF5F5F5))) {
@@ -79,9 +103,10 @@ internal fun ChatScreen(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(vertical = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    reverseLayout = true  // 反转布局，最新消息在底部
                 ) {
-                    items(messages, key = { it.id }) { message ->
+                    items(messages.reversed(), key = { it.id }) { message ->
                         MessageBubble(message = message)
                     }
                 }
