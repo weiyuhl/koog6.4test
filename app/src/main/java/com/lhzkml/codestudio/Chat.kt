@@ -295,7 +295,7 @@ private fun MarkdownText(
     val markwon = remember {
         Markwon.builder(context)
             .usePlugin(MarkwonInlineParserPlugin.create())  // 内联解析器（LaTeX 需要）
-            .usePlugin(JLatexMathPlugin.create(15f))  // LaTeX 数学公式支持，字体大小 15sp
+            .usePlugin(JLatexMathPlugin.create(70f))  // LaTeX 数学公式支持，增大字体到 70sp
             .usePlugin(StrikethroughPlugin.create())  // 删除线支持 ~~text~~
             .usePlugin(TablePlugin.create(context))  // 表格支持
             .usePlugin(TaskListPlugin.create(context))  // 任务列表支持 - [ ] 和 - [x]
@@ -308,7 +308,7 @@ private fun MarkdownText(
     AndroidView(
         factory = { ctx ->
             TextView(ctx).apply {
-                textSize = 15f
+                // 使用系统默认文本大小
                 setTextColor(Color(0xFF333333).toArgb())
                 setTextIsSelectable(true)
                 // 设置行间距，让表格和列表更易读
