@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -38,6 +39,7 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -168,39 +170,19 @@ private fun MessageBubble(message: ChatMessage) {
     
     val isUser = message.role == MessageRole.User
 
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
-        horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
+        horizontalAlignment = if (isUser) Alignment.End else Alignment.Start
     ) {
+        // 头像和角色名称行
         Row(
-            modifier = Modifier.fillMaxWidth(if (isUser) 0.85f else 1f),
-            horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
+            horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            if (isUser) {
-                // 用户消息：内容在左，头像在右
-                Column(
-                    modifier = Modifier.weight(1f),
-                    horizontalAlignment = Alignment.End
-                ) {
-                    Text(
-                        text = roleLabel,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF333333)
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    SelectionContainer {
-                        Text(
-                            text = message.text,
-                            fontSize = 15.sp,
-                            color = Color(0xFF333333),
-                            lineHeight = 22.sp
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.size(12.dp))
+            if (!isUser) {
+                // AI/系统消息：头像在左
                 Box(
                     modifier = Modifier
                         .size(36.dp)
@@ -214,8 +196,22 @@ private fun MessageBubble(message: ChatMessage) {
                         fontWeight = FontWeight.Bold
                     )
                 }
+                Spacer(modifier = Modifier.size(8.dp))
+                Text(
+                    text = roleLabel,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF333333)
+                )
             } else {
-                // AI/系统消息：头像在左，内容在右
+                // 用户消息：头像在右
+                Text(
+                    text = roleLabel,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF333333)
+                )
+                Spacer(modifier = Modifier.size(8.dp))
                 Box(
                     modifier = Modifier
                         .size(36.dp)
@@ -229,24 +225,24 @@ private fun MessageBubble(message: ChatMessage) {
                         fontWeight = FontWeight.Bold
                     )
                 }
-                Spacer(modifier = Modifier.size(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = roleLabel,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF333333)
+            }
+        }
+        
+        // 消息内容
+        Spacer(modifier = Modifier.height(8.dp))
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = if (isUser) Alignment.CenterEnd else Alignment.CenterStart
+        ) {
+            SelectionContainer {
+                BasicText(
+                    text = message.text,
+                    style = TextStyle(
+                        fontSize = 15.sp,
+                        color = Color(0xFF333333),
+                        lineHeight = 22.sp
                     )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    SelectionContainer {
-                        Text(
-                            text = message.text,
-                            fontSize = 15.sp,
-                            color = Color(0xFF333333),
-                            lineHeight = 22.sp
-                        )
-                    }
-                }
+                )
             }
         }
     }
