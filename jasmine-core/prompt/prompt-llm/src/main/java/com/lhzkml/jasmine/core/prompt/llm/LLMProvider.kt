@@ -19,6 +19,9 @@ sealed class LLMProvider(val name: String) {
     /** Google Gemini */
     data object Gemini : LLMProvider("Gemini")
 
+    /** OpenRouter 路由层 */
+    data object OpenRouter : LLMProvider("OpenRouter")
+
     /** 自定义供应商（用于动态注册的供应商） */
     class Custom(name: String) : LLMProvider(name)
 }

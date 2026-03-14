@@ -73,38 +73,11 @@ enum class Provider(
     val isSupportedOnAndroid: Boolean = true,
 ) {
     OPENAI("OpenAI", "gpt-4o-mini", "https://api.openai.com", "官方 OpenAI。可自定义模型 ID，也可改为兼容 OpenAI 的自定义 Base URL"),
-    AZURE_OPENAI(
-        "Azure OpenAI",
-        "gpt-4o-mini",
-        "https://your-resource.openai.azure.com/openai/deployments/your-deployment/",
-        "Azure OpenAI 需要部署 Base URL 和 API Version。模型字段可填写模型名或部署关联模型名",
-        baseUrlLabel = "Azure Deployment Base URL",
-        extraFieldLabel = "API Version",
-        extraFieldDefault = "2024-10-21",
-    ),
     ANTHROPIC("Anthropic", "claude-3-5-sonnet-20241022", "https://api.anthropic.com", "Anthropic Claude。支持 Claude 3.5 Sonnet、Claude 3 Opus 等模型"),
     GOOGLE("Google", "gemini-2.0-flash-exp", "https://generativelanguage.googleapis.com", "Google Gemini API。支持 Gemini 2.0 Flash、Gemini 1.5 Pro 等模型"),
     OPENROUTER("OpenRouter", "openai/gpt-4o-mini", "https://openrouter.ai/api", "OpenRouter 路由层。可切换不同上游模型，例如 OpenAI、DeepSeek、Qwen"),
-    OLLAMA(
-        "Ollama",
-        "llama3.2:latest",
-        "http://10.0.2.2:11434",
-        "本地 Ollama。Android 模拟器访问宿主机 Ollama 时默认建议用 10.0.2.2",
-        requiresApiKey = false,
-        baseUrlLabel = "Ollama Base URL",
-    ),
     DEEPSEEK("DeepSeek", "deepseek-chat", "https://api.deepseek.com", "DeepSeek 官方接口，支持 deepseek-chat、deepseek-reasoner 等模型"),
-    SILICONFLOW("硅基流动", "deepseek-ai/DeepSeek-V3.2", "https://api.siliconflow.cn", "硅基流动 API，支持 Qwen、DeepSeek、GLM 等多种开源模型"),
-    MISTRAL("Mistral", "mistral-small-latest", "https://api.mistral.ai", "Mistral 官方接口，默认模型为 mistral-small-latest"),
-    DASHSCOPE("DashScope / Qwen", "qwen-plus", "https://dashscope-intl.aliyuncs.com", "阿里 DashScope，默认国际站。也可以切换到中国大陆端点"),
-    BEDROCK(
-        "AWS Bedrock",
-        "anthropic.claude-3-5-sonnet",
-        "",
-        "AWS Bedrock client implementation. This Android Demo retains the entry point but will not execute directly on the device.",
-        requiresApiKey = false,
-        isSupportedOnAndroid = false,
-    );
+    SILICONFLOW("硅基流动", "deepseek-ai/DeepSeek-V3.2", "https://api.siliconflow.cn", "硅基流动 API，支持 Qwen、DeepSeek、GLM 等多种开源模型");
 
     override fun toString(): String = displayName
 }

@@ -58,9 +58,8 @@ internal object ValidationService {
     }
     
     private fun validateBaseUrl(provider: Provider, baseUrl: String): String? {
-        return if ((provider == Provider.AZURE_OPENAI || provider == Provider.OLLAMA) && baseUrl.isBlank()) {
-            "该供应商需要 Base URL"
-        } else null
+        // 所有供应商的 Base URL 都是可选的
+        return null
     }
     
     private fun validateExtraConfig(provider: Provider, extraConfig: String): String? {

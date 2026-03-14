@@ -40,7 +40,7 @@ class OpenRouterClient(
         const val DEFAULT_BASE_URL = "https://openrouter.ai/api"
     }
     
-    override val provider: LLMProvider = LLMProvider.OpenAI
+    override val provider: LLMProvider = LLMProvider.OpenRouter
     
     // ========== OpenRouter 特有端点 ==========
     

@@ -82,18 +82,6 @@ class ChatService {
                 )
             }
             
-            Provider.DASHSCOPE -> {
-                val url = baseUrl.ifBlank { "https://dashscope-intl.aliyuncs.com" }
-                // DashScope 使用 OpenAI 兼容接口
-                object : OpenAICompatibleClient(
-                    apiKey = apiKey,
-                    baseUrl = url,
-                    httpClient = httpClient
-                ) {
-                    override val provider = com.lhzkml.jasmine.core.prompt.llm.LLMProvider.OpenAI
-                }
-            }
-            
             Provider.OPENROUTER -> {
                 val url = baseUrl.ifBlank { OpenRouterClient.DEFAULT_BASE_URL }
                 OpenRouterClient(
@@ -101,52 +89,6 @@ class ChatService {
                     baseUrl = url,
                     httpClient = httpClient
                 )
-            }
-            
-            Provider.OLLAMA -> {
-                val url = baseUrl.ifBlank { "http://10.0.2.2:11434" }
-                object : OpenAICompatibleClient(
-                    apiKey = "ollama", // Ollama 不需要真实的 API key
-                    baseUrl = url,
-                    httpClient = httpClient
-                ) {
-                    override val provider = com.lhzkml.jasmine.core.prompt.llm.LLMProvider.OpenAI
-                }
-            }
-            
-            Provider.MISTRAL -> {
-                val url = baseUrl.ifBlank { "https://api.mistral.ai" }
-                object : OpenAICompatibleClient(
-                    apiKey = apiKey,
-                    baseUrl = url,
-                    httpClient = httpClient
-                ) {
-                    override val provider = com.lhzkml.jasmine.core.prompt.llm.LLMProvider.OpenAI
-                }
-            }
-            
-            Provider.AZURE_OPENAI -> {
-                // Azure OpenAI 需要特殊处理
-                // baseUrl 应该包含完整的部署 URL
-                // extraConfig 包含 api-version
-                val apiVersion = extraConfig.ifBlank { "2024-10-21" }
-                val fullUrl = if (baseUrl.contains("?")) {
-                    "$baseUrl&api-version=$apiVersion"
-                } else {
-                    "$baseUrl?api-version=$apiVersion"
-                }
-                object : OpenAICompatibleClient(
-                    apiKey = apiKey,
-                    baseUrl = fullUrl,
-                    httpClient = httpClient,
-                    chatPath = "/chat/completions"
-                ) {
-                    override val provider = com.lhzkml.jasmine.core.prompt.llm.LLMProvider.OpenAI
-                }
-            }
-            
-            Provider.BEDROCK -> {
-                throw UnsupportedOperationException("AWS Bedrock is not supported on Android")
             }
         }
     }

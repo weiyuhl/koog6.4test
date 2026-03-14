@@ -42,7 +42,7 @@ internal fun SettingsUiState.toUiModel(): SettingsUiModel {
         temperature = temperature,
         maxIterations = maxIterations,
         requiresApiKey = provider.requiresApiKey,
-        requiresBaseUrl = provider == Provider.AZURE_OPENAI || provider == Provider.OLLAMA,
+        requiresBaseUrl = false, // 所有供应商都使用可选的 Base URL
         requiresExtraConfig = provider.extraFieldLabel != null
     )
 }
