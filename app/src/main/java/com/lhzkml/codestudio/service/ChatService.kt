@@ -95,14 +95,12 @@ class ChatService {
             }
             
             Provider.OPENROUTER -> {
-                val url = baseUrl.ifBlank { "https://openrouter.ai/api" }
-                object : OpenAICompatibleClient(
+                val url = baseUrl.ifBlank { OpenRouterClient.DEFAULT_BASE_URL }
+                OpenRouterClient(
                     apiKey = apiKey,
                     baseUrl = url,
                     httpClient = httpClient
-                ) {
-                    override val provider = com.lhzkml.jasmine.core.prompt.llm.LLMProvider.OpenAI
-                }
+                )
             }
             
             Provider.OLLAMA -> {
@@ -236,4 +234,81 @@ class ChatService {
         val completionTokens: Int,
         val totalTokens: Int
     )
+    
+    // ========== OpenRouter 特有功能 ==========
+    
+    /**
+     * 获取指定模型的端点信息（仅 OpenRouter）
+     */
+    suspend fun getModelEndpoints(
+        client: ChatClient,
+        author: String,
+        slug: String
+    ): OpenRouterEndpointsResult {
+        return try {
+            if (client is OpenRouterClient) {
+                val response = client.getModelEndpoints(author, slug)
+                OpenRouterEndpointsResult.Success(response)
+            } else {
+                OpenRouterEndpointsResult.NotSupported
+            }
+        } catch (e: Exception) {
+            OpenRouterEndpointsResult.Error(e.message ?: "获取端点信息失败")
+        }
+    }
+    
+    /**
+     * 获取生成请求的详细统计信息（仅 OpenRouter）
+     */
+    suspend fun getGenerationStats(
+        client: ChatClient,
+        generationId: String
+    ): OpenRouterGenerationResult {
+        return try {
+            if (client is OpenRouterClient) {
+                val response = client.getGeneration(generationId)
+                OpenRouterGenerationResult.Success(response)
+            } else {
+                OpenRouterGenerationResult.NotSupported
+            }
+        } catch (e: Exception) {
+            OpenRouterGenerationResult.Error(e.message ?: "获取生成统计失败")
+        }
+    }
+    
+    /**
+     * 获取 API 密钥信息（仅 OpenRouter）
+     */
+    suspend fun getKeyInfo(
+        client: ChatClient
+    ): OpenRouterKeyInfoResult {
+        return try {
+            if (client is OpenRouterClient) {
+                val response = client.getKeyInfo()
+                OpenRouterKeyInfoResult.Success(response)
+            } else {
+                OpenRouterKeyInfoResult.NotSupported
+            }
+        } catch (e: Exception) {
+            OpenRouterKeyInfoResult.Error(e.message ?: "获取密钥信息失败")
+        }
+    }
+    
+    sealed class OpenRouterEndpointsResult {
+        data class Success(val data: com.lhzkml.jasmine.core.prompt.executor.ModelEndpointsResponse) : OpenRouterEndpointsResult()
+        data class Error(val message: String) : OpenRouterEndpointsResult()
+        object NotSupported : OpenRouterEndpointsResult()
+    }
+    
+    sealed class OpenRouterGenerationResult {
+        data class Success(val data: com.lhzkml.jasmine.core.prompt.executor.GenerationResponse) : OpenRouterGenerationResult()
+        data class Error(val message: String) : OpenRouterGenerationResult()
+        object NotSupported : OpenRouterGenerationResult()
+    }
+    
+    sealed class OpenRouterKeyInfoResult {
+        data class Success(val data: com.lhzkml.jasmine.core.prompt.executor.KeyInfoResponse) : OpenRouterKeyInfoResult()
+        data class Error(val message: String) : OpenRouterKeyInfoResult()
+        object NotSupported : OpenRouterKeyInfoResult()
+    }
 }

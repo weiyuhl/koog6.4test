@@ -204,7 +204,23 @@ internal fun App() {
                 onModelIdChanged = { settingsViewModel.onEvent(SettingsEvent.UpdateModelId(it)) },
                 onBaseUrlChanged = { settingsViewModel.onEvent(SettingsEvent.UpdateBaseUrl(it)) },
                 onExtraConfigChanged = { settingsViewModel.onEvent(SettingsEvent.UpdateExtraConfig(it)) },
-                onCheckBalance = { settingsViewModel.onEvent(SettingsEvent.CheckBalance) }
+                onCheckBalance = { settingsViewModel.onEvent(SettingsEvent.CheckBalance) },
+                onLoadOpenRouterKeyInfo = { settingsViewModel.onEvent(SettingsEvent.LoadOpenRouterKeyInfo) },
+                onLoadAvailableModels = { settingsViewModel.onEvent(SettingsEvent.LoadAvailableModels) },
+                openRouterKeyInfo = settingsState.openRouterKeyInfo,
+                isLoadingKeyInfo = settingsState.isLoadingKeyInfo,
+                availableModels = settingsViewModel.getFilteredAndSortedModels(),
+                isLoadingModels = settingsState.isLoadingModels,
+                modelSearchQuery = settingsState.modelSearchQuery,
+                onModelSearchQueryChange = { settingsViewModel.onEvent(SettingsEvent.UpdateModelSearchQuery(it)) },
+                modelFilterFree = settingsState.modelFilterFree,
+                onModelFilterFreeChange = { settingsViewModel.onEvent(SettingsEvent.UpdateModelFilterFree(it)) },
+                modelFilterInputModalities = settingsState.modelFilterInputModalities,
+                onToggleInputModality = { settingsViewModel.onEvent(SettingsEvent.ToggleInputModality(it)) },
+                modelFilterOutputModalities = settingsState.modelFilterOutputModalities,
+                onToggleOutputModality = { settingsViewModel.onEvent(SettingsEvent.ToggleOutputModality(it)) },
+                modelSortBy = settingsState.modelSortBy,
+                onModelSortByChange = { settingsViewModel.onEvent(SettingsEvent.UpdateModelSortBy(it)) }
             )
         }
 
