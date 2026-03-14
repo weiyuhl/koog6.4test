@@ -178,9 +178,18 @@ internal class ChatViewModel @Inject constructor(
     
     private fun newChat() {
         viewModelScope.launch {
-            val sessionId = chatRepository.createNewSession()
-            _uiState.update { it.copy(messages = emptyList(), currentSessionId = sessionId) }
-            loadSessions()
+            val currentMessages = _uiState.value.messages
+            
+            // 如果当前会话已经有消息，才创建新会话
+            // 如果当前会话是空的，直接清空即可，不创建新会话
+            if (currentMessages.isNotEmpty()) {
+                val sessionId = chatRepository.createNewSession()
+                _uiState.update { it.copy(messages = emptyList(), currentSessionId = sessionId) }
+                loadSessions()
+            } else {
+                // 当前会话已经是空的，不需要创建新会话
+                _uiState.update { it.copy(messages = emptyList()) }
+            }
         }
     }
     
