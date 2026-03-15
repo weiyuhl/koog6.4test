@@ -142,16 +142,11 @@ internal fun ProviderSettingsScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     BasicText(
-                        text = if (index == 0) "⚙️" else "📋",
-                        style = TextStyle(fontSize = 18.sp, textAlign = TextAlign.Center)
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    BasicText(
                         text = title,
                         style = TextStyle(
-                            fontSize = 12.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            color = if (isSelected) Color(0xFF1976D2) else Color(0xFF999999),
+                            fontSize = 16.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isSelected) Color(0xFF1976D2) else Color(0xFF666666),
                             textAlign = TextAlign.Center
                         )
                     )
