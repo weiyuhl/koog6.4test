@@ -208,7 +208,6 @@ internal fun App() {
             ProviderSettingsScreen(
                 uiModel = uiModel,
                 onBackClick = { navigationViewModel.onEvent(NavigationEvent.NavigateTo(Route.Home.value)) },
-                onProviderChange = { settingsViewModel.onEvent(SettingsEvent.UpdateProvider(it)) },
                 onApiKeyChanged = { settingsViewModel.onEvent(SettingsEvent.UpdateApiKey(it)) },
                 onModelIdChanged = { settingsViewModel.onEvent(SettingsEvent.UpdateModelId(it)) },
                 onBaseUrlChanged = { settingsViewModel.onEvent(SettingsEvent.UpdateBaseUrl(it)) },
@@ -236,8 +235,7 @@ internal fun App() {
                 siliconFlowModelSearchQuery = settingsState.siliconFlowModelSearchQuery,
                 onSiliconFlowModelSearchQueryChange = { settingsViewModel.onEvent(SettingsEvent.UpdateSiliconFlowModelSearchQuery(it)) },
                 siliconFlowModelFilterType = settingsState.siliconFlowModelFilterType,
-                onSiliconFlowModelFilterTypeChange = { settingsViewModel.onEvent(SettingsEvent.UpdateSiliconFlowModelFilterType(it)) },
-                enabledProviders = settingsState.enabledProviders
+                onSiliconFlowModelFilterTypeChange = { settingsViewModel.onEvent(SettingsEvent.UpdateSiliconFlowModelFilterType(it)) }
             )
         }
 

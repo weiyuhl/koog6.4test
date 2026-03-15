@@ -117,14 +117,6 @@ internal fun SettingsHomeScreen(
                                     fontWeight = FontWeight.Medium
                                 )
                             )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            BasicText(
-                                text = if (isEnabled) provider.providerNote else "点击开启此供应商",
-                                style = TextStyle(
-                                    fontSize = 12.sp,
-                                    color = Color(0xFF999999)
-                                )
-                            )
                         }
                         
                         Switch(

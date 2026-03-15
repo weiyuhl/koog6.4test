@@ -14,10 +14,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.lhzkml.codestudio.Provider
 import com.lhzkml.codestudio.TextField
 import com.lhzkml.codestudio.components.Bar
-import com.lhzkml.codestudio.components.DropdownField
 import com.lhzkml.codestudio.settings.provider.deepseek.DeepSeekBalanceCard
 import com.lhzkml.codestudio.settings.provider.openrouter.OpenRouterKeyInfoCard
 import com.lhzkml.codestudio.settings.provider.openrouter.OpenRouterModelsCard
@@ -29,7 +27,6 @@ import com.lhzkml.codestudio.ui.model.ProviderSettingsUiModel
 internal fun ProviderSettingsScreen(
     uiModel: ProviderSettingsUiModel,
     onBackClick: () -> Unit,
-    onProviderChange: (Provider) -> Unit,
     onApiKeyChanged: (String) -> Unit,
     onModelIdChanged: (String) -> Unit,
     onBaseUrlChanged: (String) -> Unit,
@@ -57,8 +54,7 @@ internal fun ProviderSettingsScreen(
     siliconFlowModelSearchQuery: String = "",
     onSiliconFlowModelSearchQueryChange: (String) -> Unit = {},
     siliconFlowModelFilterType: String? = null,
-    onSiliconFlowModelFilterTypeChange: (String?) -> Unit = {},
-    enabledProviders: Set<String> = emptySet()
+    onSiliconFlowModelFilterTypeChange: (String?) -> Unit = {}
 ) {
     Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF5F5F5))) {
         Bar(
@@ -78,14 +74,6 @@ internal fun ProviderSettingsScreen(
                 modifier = Modifier.padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // 供应商选择（仅显示已启用的供应商）
-                DropdownField(
-                    label = "选择供应商",
-                    value = uiModel.providerDisplayName,
-                    items = Provider.entries.filter { it.isSupportedOnAndroid && enabledProviders.contains(it.name) },
-                    itemLabel = { it.displayName },
-                    onItemSelected = onProviderChange
-                )
                 
                 TextField(
                     "模型 ID",
