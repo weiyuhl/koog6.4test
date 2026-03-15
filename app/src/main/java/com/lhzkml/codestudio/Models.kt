@@ -13,13 +13,13 @@ internal object RouteHelper {
     fun ossLicensesDetail(name: String) = "oss_licenses_detail/$name"
 }
 
-internal enum class MessageRole {
+enum class MessageRole {
     User,
     Assistant,
     System,
 }
 
-internal data class ChatMessage(
+data class ChatMessage(
     val id: Long,
     val role: MessageRole,
     val text: String,

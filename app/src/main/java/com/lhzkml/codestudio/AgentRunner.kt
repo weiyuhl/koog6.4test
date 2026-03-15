@@ -68,12 +68,17 @@ object AgentRunner {
             )
             
             // 准备消息
-            val messages = listOf(
-                JasmineChatMessage(
-                    role = "user",
-                    content = request.userPrompt
-                )
-            )
+            val messages = mutableListOf<JasmineChatMessage>()
+            for (msg in request.history) {
+                if (msg.text.isBlank() || msg.text == STREAMING_PLACEHOLDER) continue
+                when (msg.role) {
+                    MessageRole.User -> messages.add(JasmineChatMessage(role = "user", content = msg.text))
+                    MessageRole.Assistant -> messages.add(JasmineChatMessage(role = "assistant", content = msg.text))
+                    else -> {} // 忽略系统提示等无须发给模型的脏数据
+                }
+            }
+            // 追加当前的最新用户消息
+            messages.add(JasmineChatMessage(role = "user", content = request.userPrompt))
             
             // 发送请求
             onEvent("正在生成回复...")

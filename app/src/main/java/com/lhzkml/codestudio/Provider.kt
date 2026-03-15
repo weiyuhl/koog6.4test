@@ -11,6 +11,7 @@ data class Request(
     val temperature: Double?,
     val maxIterations: Int?,
     val userPrompt: String,
+    val history: List<ChatMessage> = emptyList(),
 )
 
 data class FeatureConfig(

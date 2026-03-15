@@ -62,6 +62,7 @@ internal class SendMessageUseCase @Inject constructor(
             temperature = temperature.toDoubleOrNull() ?: 0.2,
             maxIterations = maxIterations.toIntOrNull() ?: 50,
             userPrompt = userPrompt.trim(),
+            history = history,
             runtimePreset = runtimePreset
         )
     }
@@ -76,6 +77,7 @@ internal class SendMessageUseCase @Inject constructor(
         val temperature: String,
         val maxIterations: String,
         val userPrompt: String,
+        val history: List<ChatMessage>,
         val runtimePreset: Preset,
         val requiresApiKey: Boolean,
         val requiresBaseUrl: Boolean
@@ -90,7 +92,7 @@ internal class SendMessageUseCase @Inject constructor(
     class ValidationException(message: String) : Exception(message)
 }
 
-internal fun State.toSendMessageRequest(userPrompt: String): SendMessageUseCase.SendMessageRequest {
+internal fun State.toSendMessageRequest(userPrompt: String, history: List<ChatMessage> = emptyList()): SendMessageUseCase.SendMessageRequest {
     return SendMessageUseCase.SendMessageRequest(
         provider = provider,
         apiKey = apiKey,
@@ -101,6 +103,7 @@ internal fun State.toSendMessageRequest(userPrompt: String): SendMessageUseCase.
         temperature = temperature,
         maxIterations = maxIterations,
         userPrompt = userPrompt,
+        history = history,
         runtimePreset = runtimePreset,
         requiresApiKey = provider.requiresApiKey,
         requiresBaseUrl = false // 所有供应商都使用可选的 Base URL

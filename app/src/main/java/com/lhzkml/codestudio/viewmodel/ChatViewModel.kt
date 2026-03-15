@@ -98,6 +98,11 @@ internal class ChatViewModel @Inject constructor(
         
         if (userPrompt.isBlank() || currentState.isRunning) return
         
+        // 提取发送此消息之前的有效历史上下文
+        val historyToPass = currentState.messages.filter { 
+            it.role == MessageRole.User || it.role == MessageRole.Assistant 
+        }
+        
         addMessage(MessageRole.User, userPrompt)
         _uiState.update { it.copy(prompt = "") }
         
@@ -145,7 +150,7 @@ internal class ChatViewModel @Inject constructor(
             }
             
             val result = sendMessageUseCase.execute(
-                request = state.toSendMessageRequest(userPrompt),
+                request = state.toSendMessageRequest(userPrompt, historyToPass),
                 onTextDelta = { delta ->
                     updateMessage(assistantId) { current ->
                         current.copy(
