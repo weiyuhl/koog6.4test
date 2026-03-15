@@ -43,7 +43,8 @@ fun SideItem(
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    icon: @Composable (() -> Unit)? = null
+    icon: @Composable (() -> Unit)? = null,
+    trailingIcon: @Composable (() -> Unit)? = null
 ) {
     Row(
         modifier = modifier
@@ -71,6 +72,10 @@ fun SideItem(
             Spacer(modifier = Modifier.width(12.dp))
         }
         label()
+        if (trailingIcon != null) {
+            Spacer(modifier = Modifier.weight(1f))
+            trailingIcon()
+        }
     }
 }
 

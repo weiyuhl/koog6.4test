@@ -1,6 +1,7 @@
 package com.lhzkml.codestudio
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -118,6 +119,15 @@ internal fun App() {
                                             BasicText(
                                                 text = session.title,
                                                 style = TextStyle(fontSize = 15.sp)
+                                            )
+                                        },
+                                        trailingIcon = {
+                                            BasicText(
+                                                text = "🗑️",
+                                                style = TextStyle(fontSize = 14.sp),
+                                                modifier = Modifier.clickable {
+                                                    chatViewModel.onEvent(ChatEvent.DeleteSession(session.id))
+                                                }.padding(4.dp)
                                             )
                                         },
                                         selected = session.id == chatState.currentSessionId,
