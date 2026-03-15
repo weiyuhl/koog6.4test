@@ -22,7 +22,7 @@ internal data class ChatUiState(
     val currentSessionId: String = "",
     val prompt: String = "",
     val isRunning: Boolean = false,
-    val provider: Provider = Provider.OPENAI
+    val provider: Provider? = null
 )
 
 internal sealed interface ChatEvent {
@@ -72,7 +72,7 @@ internal class ChatViewModel @Inject constructor(
             settingsRepository.settingsFlow.collect { settings ->
                 val provider = Provider.entries.firstOrNull { 
                     it.name == settings.providerName 
-                } ?: Provider.OPENAI
+                }
                 _uiState.update { it.copy(provider = provider) }
             }
         }
@@ -102,9 +102,9 @@ internal class ChatViewModel @Inject constructor(
         _uiState.update { it.copy(prompt = "") }
         
         viewModelScope.launch {
+            val provider = currentState.provider
             // 检查是否有已启用的供应商
-            val enabledProviders = settingsRepository.enabledProvidersFlow.first()
-            if (enabledProviders.isEmpty()) {
+            if (provider == null) {
                 addMessage(
                     MessageRole.System,
                     "当前没有启用任何供应商，请先到设置页开启并配置一个供应商",
@@ -113,17 +113,7 @@ internal class ChatViewModel @Inject constructor(
                 return@launch
             }
             
-            // 检查当前供应商是否在已启用列表中
-            if (!enabledProviders.contains(currentState.provider.name)) {
-                addMessage(
-                    MessageRole.System,
-                    "当前供应商 ${currentState.provider.displayName} 未启用，请到设置页开启该供应商或切换到已启用的供应商",
-                    "供应商未启用"
-                )
-                return@launch
-            }
-            
-            val assistantId = addMessage(MessageRole.Assistant, STREAMING_PLACEHOLDER, currentState.provider.displayName, isStreaming = true)
+            val assistantId = addMessage(MessageRole.Assistant, STREAMING_PLACEHOLDER, provider.displayName, isStreaming = true)
             _uiState.update { it.copy(isRunning = true) }
             
             val settings = settingsRepository.settingsFlow.first()
@@ -131,7 +121,7 @@ internal class ChatViewModel @Inject constructor(
             val preset = Preset.fromId(presetId)
             
             val state = State(
-                provider = currentState.provider,
+                provider = provider,
                 apiKey = settings.apiKey,
                 modelId = settings.modelId,
                 baseUrl = settings.baseUrl,

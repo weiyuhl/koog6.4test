@@ -25,24 +25,25 @@ internal data class SettingsUiModel(
 )
 
 internal fun SettingsUiState.toUiModel(): SettingsUiModel {
+    val safeProvider = provider ?: Provider.OPENAI
     return SettingsUiModel(
-        providerName = provider.name,
-        providerDisplayName = provider.displayName,
+        providerName = safeProvider.name,
+        providerDisplayName = safeProvider.displayName,
         apiKey = apiKey,
         modelId = modelId,
-        defaultModelId = provider.defaultModelId,
+        defaultModelId = safeProvider.defaultModelId,
         baseUrl = baseUrl,
-        baseUrlLabel = provider.baseUrlLabel,
+        baseUrlLabel = safeProvider.baseUrlLabel,
         extraConfig = extraConfig,
-        extraFieldLabel = provider.extraFieldLabel,
-        extraFieldDefault = provider.extraFieldDefault,
+        extraFieldLabel = safeProvider.extraFieldLabel,
+        extraFieldDefault = safeProvider.extraFieldDefault,
         runtimePresetId = runtimePreset.id,
         runtimePresetTitle = runtimePreset.title,
         systemPrompt = systemPrompt,
         temperature = temperature,
         maxIterations = maxIterations,
-        requiresApiKey = provider.requiresApiKey,
+        requiresApiKey = safeProvider.requiresApiKey,
         requiresBaseUrl = false, // 所有供应商都使用可选的 Base URL
-        requiresExtraConfig = provider.extraFieldLabel != null
+        requiresExtraConfig = safeProvider.extraFieldLabel != null
     )
 }

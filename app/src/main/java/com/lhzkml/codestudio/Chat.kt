@@ -61,7 +61,7 @@ import android.widget.TextView
 
 @Composable
 internal fun ChatScreen(
-    provider: Provider,
+    provider: Provider?,
     prompt: String,
     isRunning: Boolean,
     messages: List<ChatMessage>,

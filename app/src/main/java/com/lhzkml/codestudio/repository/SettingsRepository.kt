@@ -29,7 +29,7 @@ internal class SettingsRepository @Inject constructor(
     // 当前选中的供应商配置
     val settingsFlow: Flow<StoredSettings> = combine(
         settingsDao.getGlobalSettingsFlow(),
-        settingsDao.getGlobalSettingsFlow().map { it?.currentProvider ?: Provider.SILICONFLOW.name }
+        settingsDao.getGlobalSettingsFlow().map { it?.currentProvider ?: "" }
     ) { globalSettings, currentProvider ->
         val providerSettings = settingsDao.getProviderSettings(currentProvider)
         
@@ -111,7 +111,7 @@ internal class SettingsRepository @Inject constructor(
     suspend fun updatePresetId(presetId: String) {
         val globalSettings = settingsDao.getGlobalSettings() ?: GlobalSettingsEntity(
             id = 1,
-            currentProvider = Provider.SILICONFLOW.name,
+            currentProvider = "",
             enabledProviders = "",
             systemPrompt = "",
             temperature = "0.2",

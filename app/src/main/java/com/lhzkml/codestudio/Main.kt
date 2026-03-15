@@ -145,7 +145,7 @@ internal fun App() {
                                         )
                                     )
                                     BasicText(
-                                        text = chatState.provider.displayName,
+                                        text = chatState.provider?.displayName ?: "未配置",
                                         style = TextStyle(
                                             fontSize = 16.sp,
                                             color = Color(0xFF666666)

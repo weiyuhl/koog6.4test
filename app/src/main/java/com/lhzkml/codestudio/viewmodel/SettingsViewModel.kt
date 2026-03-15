@@ -21,7 +21,7 @@ import kotlinx.serialization.json.intOrNull
 import javax.inject.Inject
 
 internal data class SettingsUiState(
-    val provider: Provider = Provider.OPENAI,
+    val provider: Provider? = null,
     val apiKey: String = "",
     val modelId: String = "",
     val baseUrl: String = "",
@@ -134,7 +134,7 @@ internal class SettingsViewModel @Inject constructor(
             settingsRepository.settingsFlow.collect { settings ->
                 val provider = Provider.entries.firstOrNull { 
                     it.name == settings.providerName 
-                } ?: Provider.OPENAI
+                }
                 
                 _uiState.update {
                     it.copy(
@@ -281,19 +281,16 @@ internal class SettingsViewModel @Inject constructor(
     
     private fun updateProviderEnabled(provider: Provider, enabled: Boolean) {
         viewModelScope.launch {
-            val currentEnabled = _uiState.value.enabledProviders.toMutableSet()
             if (enabled) {
-                currentEnabled.add(provider.name)
-                // 自动切换当前活跃供应商为刚开启的供应商
+                // 互斥：只允许一个供应商被启用
+                val newEnabled = setOf(provider.name)
+                settingsRepository.updateEnabledProviders(newEnabled)
                 settingsRepository.updateCurrentProvider(provider.name)
             } else {
-                currentEnabled.remove(provider.name)
-                // 如果关闭的是当前活跃供应商，切换到其他已启用的供应商
-                if (_uiState.value.provider == provider && currentEnabled.isNotEmpty()) {
-                    settingsRepository.updateCurrentProvider(currentEnabled.first())
-                }
+                // 关闭供应商
+                settingsRepository.updateEnabledProviders(emptySet())
+                settingsRepository.updateCurrentProvider("")
             }
-            settingsRepository.updateEnabledProviders(currentEnabled)
         }
     }
     
@@ -303,7 +300,7 @@ internal class SettingsViewModel @Inject constructor(
             
             // 执行校验并更新 formErrors
             val domainState = State(
-                provider = state.provider,
+                provider = state.provider ?: Provider.OPENAI,
                 apiKey = state.apiKey,
                 modelId = state.modelId,
                 baseUrl = state.baseUrl,
@@ -313,12 +310,12 @@ internal class SettingsViewModel @Inject constructor(
                 temperature = state.temperature,
                 maxIterations = state.maxIterations
             )
-            val errors = validateSettings(domainState)
+            val errors = if (state.provider == null) FormErrors() else validateSettings(domainState)
             _uiState.update { it.copy(formErrors = errors) }
             
             settingsRepository.updateSettings(
                 StoredSettings(
-                    providerName = state.provider.name,
+                    providerName = state.provider?.name ?: "",
                     apiKey = state.apiKey,
                     modelId = state.modelId,
                     baseUrl = state.baseUrl,
@@ -355,9 +352,10 @@ internal class SettingsViewModel @Inject constructor(
             _uiState.update { it.copy(isCheckingBalance = true, balanceInfo = null) }
             
             try {
+                val provider = state.provider ?: return@launch
                 val chatService = com.lhzkml.codestudio.service.ChatService()
                 val client = chatService.createClient(
-                    provider = state.provider,
+                    provider = provider,
                     apiKey = state.apiKey,
                     baseUrl = state.baseUrl,
                     extraConfig = state.extraConfig
@@ -569,9 +567,10 @@ internal class SettingsViewModel @Inject constructor(
             _uiState.update { it.copy(isLoadingModels = true, availableModels = emptyList()) }
             
             try {
+                val provider = state.provider ?: return@launch
                 val chatService = com.lhzkml.codestudio.service.ChatService()
                 val client = chatService.createClient(
-                    provider = state.provider,
+                    provider = provider,
                     apiKey = state.apiKey,
                     baseUrl = state.baseUrl,
                     extraConfig = state.extraConfig
@@ -762,9 +761,10 @@ internal class SettingsViewModel @Inject constructor(
             _uiState.update { it.copy(isLoadingSiliconFlowModels = true, siliconFlowModels = emptyList()) }
             
             try {
+                val provider = state.provider ?: return@launch
                 val chatService = com.lhzkml.codestudio.service.ChatService()
                 val client = chatService.createClient(
-                    provider = state.provider,
+                    provider = provider,
                     apiKey = state.apiKey,
                     baseUrl = state.baseUrl,
                     extraConfig = state.extraConfig
