@@ -26,18 +26,24 @@ internal class SettingsRepository @Inject constructor(
     private val settingsDao: SettingsDao
 ) {
     
-    // 当前选中的供应商配置
+    // 当前选中的供应商配置（必须同时是被启用的）
     val settingsFlow: Flow<StoredSettings> = combine(
         settingsDao.getGlobalSettingsFlow(),
         settingsDao.getGlobalSettingsFlow().map { it?.currentProvider ?: "" }
     ) { globalSettings, currentProvider ->
-        val providerSettings = settingsDao.getProviderSettings(currentProvider)
+        val enabledStr = globalSettings?.enabledProviders ?: ""
+        val isEnabled = enabledStr.split(",").any { it.isNotBlank() && it == currentProvider }
+        
+        // 如果当前供应商没有被开关开启，则视作没有任何活跃供应商
+        val actualProvider = if (isEnabled) currentProvider else ""
+        
+        val providerSettings = settingsDao.getProviderSettings(actualProvider)
         
         StoredSettings(
-            providerName = currentProvider,
+            providerName = actualProvider,
             apiKey = providerSettings?.apiKey ?: "",
-            modelId = providerSettings?.modelId ?: getDefaultModelId(currentProvider),
-            baseUrl = providerSettings?.baseUrl ?: getDefaultBaseUrl(currentProvider),
+            modelId = providerSettings?.modelId ?: getDefaultModelId(actualProvider),
+            baseUrl = providerSettings?.baseUrl ?: getDefaultBaseUrl(actualProvider),
             extraConfig = providerSettings?.extraConfig ?: "",
             systemPrompt = globalSettings?.systemPrompt ?: "",
             temperature = globalSettings?.temperature ?: "0.2",
@@ -99,7 +105,7 @@ internal class SettingsRepository @Inject constructor(
         // 更新全局配置
         val globalSettings = settingsDao.getGlobalSettings() ?: GlobalSettingsEntity(
             id = 1,
-            currentProvider = settings.providerName,
+            currentProvider = "", // <--- 不要在这里默认设置当前提供商，必须由开关控制
             enabledProviders = "",
             systemPrompt = settings.systemPrompt,
             temperature = settings.temperature,
