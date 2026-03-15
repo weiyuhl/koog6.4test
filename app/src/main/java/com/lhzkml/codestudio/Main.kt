@@ -123,11 +123,16 @@ internal fun App() {
                                         },
                                         trailingIcon = {
                                             BasicText(
-                                                text = "🗑️",
-                                                style = TextStyle(fontSize = 14.sp),
-                                                modifier = Modifier.clickable {
-                                                    chatViewModel.onEvent(ChatEvent.DeleteSession(session.id))
-                                                }.padding(4.dp)
+                                                text = "删除",
+                                                style = TextStyle(
+                                                    fontSize = 13.sp,
+                                                    color = Color(0xFFE53935)
+                                                ),
+                                                modifier = Modifier
+                                                    .clickable {
+                                                        chatViewModel.onEvent(ChatEvent.DeleteSession(session.id))
+                                                    }
+                                                    .padding(4.dp)
                                             )
                                         },
                                         selected = session.id == chatState.currentSessionId,
