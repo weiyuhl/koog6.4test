@@ -53,8 +53,8 @@ internal class SettingsRepository @Inject constructor(
         .map { globalSettings ->
             val enabledStr = globalSettings?.enabledProviders ?: ""
             if (enabledStr.isBlank()) {
-                // 默认启用所有供应商
-                Provider.entries.filter { it.isSupportedOnAndroid }.map { it.name }.toSet()
+                // 默认不启用任何供应商，需要用户手动开启
+                emptySet()
             } else {
                 enabledStr.split(",").filter { it.isNotBlank() }.toSet()
             }
@@ -76,7 +76,7 @@ internal class SettingsRepository @Inject constructor(
         val globalSettings = settingsDao.getGlobalSettings() ?: GlobalSettingsEntity(
             id = 1,
             currentProvider = settings.providerName,
-            enabledProviders = Provider.entries.filter { it.isSupportedOnAndroid }.joinToString(",") { it.name },
+            enabledProviders = "",
             systemPrompt = settings.systemPrompt,
             temperature = settings.temperature,
             maxIterations = settings.maxIterations,
@@ -96,7 +96,7 @@ internal class SettingsRepository @Inject constructor(
         val globalSettings = settingsDao.getGlobalSettings() ?: GlobalSettingsEntity(
             id = 1,
             currentProvider = providerName,
-            enabledProviders = Provider.entries.filter { it.isSupportedOnAndroid }.joinToString(",") { it.name },
+            enabledProviders = "",
             systemPrompt = "",
             temperature = "0.2",
             maxIterations = "50",
@@ -112,7 +112,7 @@ internal class SettingsRepository @Inject constructor(
         val globalSettings = settingsDao.getGlobalSettings() ?: GlobalSettingsEntity(
             id = 1,
             currentProvider = Provider.SILICONFLOW.name,
-            enabledProviders = Provider.entries.filter { it.isSupportedOnAndroid }.joinToString(",") { it.name },
+            enabledProviders = "",
             systemPrompt = "",
             temperature = "0.2",
             maxIterations = "50",

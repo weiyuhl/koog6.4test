@@ -99,11 +99,33 @@ internal class ChatViewModel @Inject constructor(
         if (userPrompt.isBlank() || currentState.isRunning) return
         
         addMessage(MessageRole.User, userPrompt)
-        val assistantId = addMessage(MessageRole.Assistant, STREAMING_PLACEHOLDER, currentState.provider.displayName, isStreaming = true)
-        
-        _uiState.update { it.copy(prompt = "", isRunning = true) }
+        _uiState.update { it.copy(prompt = "") }
         
         viewModelScope.launch {
+            // 检查是否有已启用的供应商
+            val enabledProviders = settingsRepository.enabledProvidersFlow.first()
+            if (enabledProviders.isEmpty()) {
+                addMessage(
+                    MessageRole.System,
+                    "当前没有启用任何供应商，请先到设置页开启并配置一个供应商",
+                    "供应商未配置"
+                )
+                return@launch
+            }
+            
+            // 检查当前供应商是否在已启用列表中
+            if (!enabledProviders.contains(currentState.provider.name)) {
+                addMessage(
+                    MessageRole.System,
+                    "当前供应商 ${currentState.provider.displayName} 未启用，请到设置页开启该供应商或切换到已启用的供应商",
+                    "供应商未启用"
+                )
+                return@launch
+            }
+            
+            val assistantId = addMessage(MessageRole.Assistant, STREAMING_PLACEHOLDER, currentState.provider.displayName, isStreaming = true)
+            _uiState.update { it.copy(isRunning = true) }
+            
             val settings = settingsRepository.settingsFlow.first()
             val presetId = settingsRepository.presetIdFlow.first()
             val preset = Preset.fromId(presetId)

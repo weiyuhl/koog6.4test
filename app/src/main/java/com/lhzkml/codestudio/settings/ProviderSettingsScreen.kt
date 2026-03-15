@@ -57,7 +57,8 @@ internal fun ProviderSettingsScreen(
     siliconFlowModelSearchQuery: String = "",
     onSiliconFlowModelSearchQueryChange: (String) -> Unit = {},
     siliconFlowModelFilterType: String? = null,
-    onSiliconFlowModelFilterTypeChange: (String?) -> Unit = {}
+    onSiliconFlowModelFilterTypeChange: (String?) -> Unit = {},
+    enabledProviders: Set<String> = emptySet()
 ) {
     Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF5F5F5))) {
         Bar(
@@ -77,11 +78,11 @@ internal fun ProviderSettingsScreen(
                 modifier = Modifier.padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // 供应商选择
+                // 供应商选择（仅显示已启用的供应商）
                 DropdownField(
                     label = "选择供应商",
                     value = uiModel.providerDisplayName,
-                    items = Provider.entries.filter { it.isSupportedOnAndroid },
+                    items = Provider.entries.filter { it.isSupportedOnAndroid && enabledProviders.contains(it.name) },
                     itemLabel = { it.displayName },
                     onItemSelected = onProviderChange
                 )

@@ -95,8 +95,15 @@ internal fun SettingsHomeScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color.White)
-                            .clickable { onOpenProvider(provider) }
+                            .background(if (isEnabled) Color.White else Color(0xFFF0F0F0))
+                            .clickable { 
+                                if (isEnabled) {
+                                    onOpenProvider(provider)
+                                } else {
+                                    // 未启用时点击自动开启
+                                    onProviderEnabledChange(provider, true)
+                                }
+                            }
                             .padding(horizontal = 16.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
@@ -106,13 +113,13 @@ internal fun SettingsHomeScreen(
                                 text = provider.displayName,
                                 style = TextStyle(
                                     fontSize = 15.sp,
-                                    color = Color(0xFF333333),
+                                    color = if (isEnabled) Color(0xFF333333) else Color(0xFF999999),
                                     fontWeight = FontWeight.Medium
                                 )
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             BasicText(
-                                text = provider.providerNote,
+                                text = if (isEnabled) provider.providerNote else "点击开启此供应商",
                                 style = TextStyle(
                                     fontSize = 12.sp,
                                     color = Color(0xFF999999)

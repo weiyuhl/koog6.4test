@@ -236,7 +236,8 @@ internal fun App() {
                 siliconFlowModelSearchQuery = settingsState.siliconFlowModelSearchQuery,
                 onSiliconFlowModelSearchQueryChange = { settingsViewModel.onEvent(SettingsEvent.UpdateSiliconFlowModelSearchQuery(it)) },
                 siliconFlowModelFilterType = settingsState.siliconFlowModelFilterType,
-                onSiliconFlowModelFilterTypeChange = { settingsViewModel.onEvent(SettingsEvent.UpdateSiliconFlowModelFilterType(it)) }
+                onSiliconFlowModelFilterTypeChange = { settingsViewModel.onEvent(SettingsEvent.UpdateSiliconFlowModelFilterType(it)) },
+                enabledProviders = settingsState.enabledProviders
             )
         }
 

@@ -284,8 +284,14 @@ internal class SettingsViewModel @Inject constructor(
             val currentEnabled = _uiState.value.enabledProviders.toMutableSet()
             if (enabled) {
                 currentEnabled.add(provider.name)
+                // 自动切换当前活跃供应商为刚开启的供应商
+                settingsRepository.updateCurrentProvider(provider.name)
             } else {
                 currentEnabled.remove(provider.name)
+                // 如果关闭的是当前活跃供应商，切换到其他已启用的供应商
+                if (_uiState.value.provider == provider && currentEnabled.isNotEmpty()) {
+                    settingsRepository.updateCurrentProvider(currentEnabled.first())
+                }
             }
             settingsRepository.updateEnabledProviders(currentEnabled)
         }
