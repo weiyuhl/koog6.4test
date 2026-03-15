@@ -1,19 +1,33 @@
 package com.lhzkml.codestudio.settings
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.lhzkml.codestudio.TextField
 import com.lhzkml.codestudio.components.Bar
 import com.lhzkml.codestudio.settings.provider.deepseek.DeepSeekBalanceCard
@@ -56,135 +70,304 @@ internal fun ProviderSettingsScreen(
     siliconFlowModelFilterType: String? = null,
     onSiliconFlowModelFilterTypeChange: (String?) -> Unit = {}
 ) {
+    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+    val tabs = listOf("配置", "模型")
+
     Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF5F5F5))) {
         Bar(
-            title = "供应商配置",
+            title = uiModel.providerDisplayName,
             onBackClick = onBackClick
         )
-        
-        Column(
+
+        // 内容区域
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .weight(1f)
-                .verticalScroll(rememberScrollState())
         ) {
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            Column(
-                modifier = Modifier.padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                
-                TextField(
-                    "模型 ID",
-                    uiModel.modelId,
-                    onModelIdChanged,
-                    uiModel.errors.modelId,
-                    uiModel.modelIdPlaceholder
+            when (selectedTab) {
+                0 -> ConfigTab(
+                    uiModel = uiModel,
+                    onApiKeyChanged = onApiKeyChanged,
+                    onModelIdChanged = onModelIdChanged,
+                    onBaseUrlChanged = onBaseUrlChanged,
+                    onExtraConfigChanged = onExtraConfigChanged,
+                    onCheckBalance = onCheckBalance,
+                    onLoadOpenRouterKeyInfo = onLoadOpenRouterKeyInfo,
+                    openRouterKeyInfo = openRouterKeyInfo,
+                    isLoadingKeyInfo = isLoadingKeyInfo
                 )
-                
-                if (uiModel.showApiKey) {
-                    TextField(
-                        "API Key",
-                        uiModel.apiKey,
-                        onApiKeyChanged,
-                        uiModel.errors.apiKey,
-                        uiModel.apiKeyPlaceholder,
-                        secure = true
+                1 -> ModelsTab(
+                    uiModel = uiModel,
+                    availableModels = availableModels,
+                    isLoadingModels = isLoadingModels,
+                    onLoadAvailableModels = onLoadAvailableModels,
+                    onModelIdChanged = onModelIdChanged,
+                    modelSearchQuery = modelSearchQuery,
+                    onModelSearchQueryChange = onModelSearchQueryChange,
+                    modelFilterFree = modelFilterFree,
+                    onModelFilterFreeChange = onModelFilterFreeChange,
+                    modelFilterInputModalities = modelFilterInputModalities,
+                    onToggleInputModality = onToggleInputModality,
+                    modelFilterOutputModalities = modelFilterOutputModalities,
+                    onToggleOutputModality = onToggleOutputModality,
+                    modelSortBy = modelSortBy,
+                    onModelSortByChange = onModelSortByChange,
+                    onLoadSiliconFlowModels = onLoadSiliconFlowModels,
+                    siliconFlowModels = siliconFlowModels,
+                    isLoadingSiliconFlowModels = isLoadingSiliconFlowModels,
+                    siliconFlowModelSearchQuery = siliconFlowModelSearchQuery,
+                    onSiliconFlowModelSearchQueryChange = onSiliconFlowModelSearchQueryChange,
+                    siliconFlowModelFilterType = siliconFlowModelFilterType,
+                    onSiliconFlowModelFilterTypeChange = onSiliconFlowModelFilterTypeChange
+                )
+            }
+        }
+
+        // 底部 Tab 导航栏
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color.White)
+                .padding(top = 1.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            tabs.forEachIndexed { index, title ->
+                val isSelected = selectedTab == index
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { selectedTab = index }
+                        .padding(vertical = 10.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    BasicText(
+                        text = if (index == 0) "⚙️" else "📋",
+                        style = TextStyle(fontSize = 18.sp, textAlign = TextAlign.Center)
                     )
-                }
-                
-                if (uiModel.showBaseUrl) {
-                    TextField(
-                        uiModel.baseUrlLabel,
-                        uiModel.baseUrl,
-                        onBaseUrlChanged,
-                        uiModel.errors.baseUrl,
-                        uiModel.baseUrlPlaceholder,
-                        keyboardType = KeyboardType.Uri
+                    Spacer(modifier = Modifier.height(2.dp))
+                    BasicText(
+                        text = title,
+                        style = TextStyle(
+                            fontSize = 12.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                            color = if (isSelected) Color(0xFF1976D2) else Color(0xFF999999),
+                            textAlign = TextAlign.Center
+                        )
                     )
-                }
-                
-                uiModel.extraFieldLabel?.let { label ->
-                    if (uiModel.showExtraField) {
-                        TextField(
-                            label,
-                            uiModel.extraConfig,
-                            onExtraConfigChanged,
-                            uiModel.errors.extraConfig,
-                            uiModel.extraFieldPlaceholder
+                    // 选中指示条
+                    if (isSelected) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(0.4f)
+                                .height(2.dp)
+                                .background(Color(0xFF1976D2))
                         )
                     }
                 }
-                
-                // 供应商特有功能 - 按供应商分类
-                when (uiModel.providerDisplayName) {
-                    "OpenRouter" -> {
-                        // OpenRouter 特有功能
-                        OpenRouterKeyInfoCard(
-                            keyInfo = openRouterKeyInfo,
-                            isLoading = isLoadingKeyInfo,
-                            onClick = onLoadOpenRouterKeyInfo
-                        )
-                        
-                        OpenRouterModelsCard(
-                            models = availableModels,
-                            isLoading = isLoadingModels,
-                            onClick = onLoadAvailableModels,
-                            onModelSelected = onModelIdChanged,
-                            searchQuery = modelSearchQuery,
-                            onSearchQueryChange = onModelSearchQueryChange,
-                            filterFree = modelFilterFree,
-                            onFilterFreeChange = onModelFilterFreeChange,
-                            filterInputModalities = modelFilterInputModalities,
-                            onToggleInputModality = onToggleInputModality,
-                            filterOutputModalities = modelFilterOutputModalities,
-                            onToggleOutputModality = onToggleOutputModality,
-                            sortBy = modelSortBy,
-                            onSortByChange = onModelSortByChange
-                        )
-                    }
-                    "DeepSeek" -> {
-                        // DeepSeek 特有功能
+            }
+        }
+    }
+}
+
+/**
+ * Tab 1: 配置 + 余额查询
+ */
+@Composable
+private fun ConfigTab(
+    uiModel: ProviderSettingsUiModel,
+    onApiKeyChanged: (String) -> Unit,
+    onModelIdChanged: (String) -> Unit,
+    onBaseUrlChanged: (String) -> Unit,
+    onExtraConfigChanged: (String) -> Unit,
+    onCheckBalance: () -> Unit,
+    onLoadOpenRouterKeyInfo: () -> Unit,
+    openRouterKeyInfo: com.lhzkml.codestudio.viewmodel.OpenRouterKeyInfo?,
+    isLoadingKeyInfo: Boolean
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+    ) {
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            TextField(
+                "模型 ID",
+                uiModel.modelId,
+                onModelIdChanged,
+                uiModel.errors.modelId,
+                uiModel.modelIdPlaceholder
+            )
+
+            if (uiModel.showApiKey) {
+                TextField(
+                    "API Key",
+                    uiModel.apiKey,
+                    onApiKeyChanged,
+                    uiModel.errors.apiKey,
+                    uiModel.apiKeyPlaceholder,
+                    secure = true
+                )
+            }
+
+            if (uiModel.showBaseUrl) {
+                TextField(
+                    uiModel.baseUrlLabel,
+                    uiModel.baseUrl,
+                    onBaseUrlChanged,
+                    uiModel.errors.baseUrl,
+                    uiModel.baseUrlPlaceholder,
+                    keyboardType = KeyboardType.Uri
+                )
+            }
+
+            uiModel.extraFieldLabel?.let { label ->
+                if (uiModel.showExtraField) {
+                    TextField(
+                        label,
+                        uiModel.extraConfig,
+                        onExtraConfigChanged,
+                        uiModel.errors.extraConfig,
+                        uiModel.extraFieldPlaceholder
+                    )
+                }
+            }
+
+            // 余额查询 - 按供应商分类
+            when (uiModel.providerDisplayName) {
+                "OpenRouter" -> {
+                    OpenRouterKeyInfoCard(
+                        keyInfo = openRouterKeyInfo,
+                        isLoading = isLoadingKeyInfo,
+                        onClick = onLoadOpenRouterKeyInfo
+                    )
+                }
+                "DeepSeek" -> {
+                    DeepSeekBalanceCard(
+                        balanceInfo = uiModel.balanceInfo,
+                        isChecking = uiModel.isCheckingBalance,
+                        onClick = onCheckBalance
+                    )
+                }
+                "硅基流动" -> {
+                    SiliconFlowBalanceCard(
+                        balanceInfo = uiModel.balanceInfo,
+                        isChecking = uiModel.isCheckingBalance,
+                        onClick = onCheckBalance
+                    )
+                }
+                else -> {
+                    if (uiModel.supportsBalanceCheck) {
                         DeepSeekBalanceCard(
                             balanceInfo = uiModel.balanceInfo,
                             isChecking = uiModel.isCheckingBalance,
                             onClick = onCheckBalance
                         )
                     }
-                    "硅基流动" -> {
-                        // 硅基流动特有功能
-                        SiliconFlowBalanceCard(
-                            balanceInfo = uiModel.balanceInfo,
-                            isChecking = uiModel.isCheckingBalance,
-                            onClick = onCheckBalance
-                        )
-                        
-                        SiliconFlowModelsCard(
-                            models = siliconFlowModels,
-                            isLoading = isLoadingSiliconFlowModels,
-                            onClick = onLoadSiliconFlowModels,
-                            onModelSelected = onModelIdChanged,
-                            searchQuery = siliconFlowModelSearchQuery,
-                            onSearchQueryChange = onSiliconFlowModelSearchQueryChange,
-                            filterType = siliconFlowModelFilterType,
-                            onFilterTypeChange = onSiliconFlowModelFilterTypeChange
-                        )
-                    }
-                    else -> {
-                        // 其他供应商的通用余额查询
-                        if (uiModel.supportsBalanceCheck) {
-                            DeepSeekBalanceCard(
-                                balanceInfo = uiModel.balanceInfo,
-                                isChecking = uiModel.isCheckingBalance,
-                                onClick = onCheckBalance
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+    }
+}
+
+/**
+ * Tab 2: 模型列表
+ */
+@Composable
+private fun ModelsTab(
+    uiModel: ProviderSettingsUiModel,
+    availableModels: List<com.lhzkml.codestudio.viewmodel.OpenRouterModelInfo>,
+    isLoadingModels: Boolean,
+    onLoadAvailableModels: () -> Unit,
+    onModelIdChanged: (String) -> Unit,
+    modelSearchQuery: String,
+    onModelSearchQueryChange: (String) -> Unit,
+    modelFilterFree: Boolean?,
+    onModelFilterFreeChange: (Boolean?) -> Unit,
+    modelFilterInputModalities: Set<String>,
+    onToggleInputModality: (String) -> Unit,
+    modelFilterOutputModalities: Set<String>,
+    onToggleOutputModality: (String) -> Unit,
+    modelSortBy: com.lhzkml.codestudio.viewmodel.ModelSortOption,
+    onModelSortByChange: (com.lhzkml.codestudio.viewmodel.ModelSortOption) -> Unit,
+    onLoadSiliconFlowModels: () -> Unit,
+    siliconFlowModels: List<com.lhzkml.codestudio.viewmodel.SiliconFlowModelInfo>,
+    isLoadingSiliconFlowModels: Boolean,
+    siliconFlowModelSearchQuery: String,
+    onSiliconFlowModelSearchQueryChange: (String) -> Unit,
+    siliconFlowModelFilterType: String?,
+    onSiliconFlowModelFilterTypeChange: (String?) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+    ) {
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            when (uiModel.providerDisplayName) {
+                "OpenRouter" -> {
+                    OpenRouterModelsCard(
+                        models = availableModels,
+                        isLoading = isLoadingModels,
+                        onClick = onLoadAvailableModels,
+                        onModelSelected = onModelIdChanged,
+                        searchQuery = modelSearchQuery,
+                        onSearchQueryChange = onModelSearchQueryChange,
+                        filterFree = modelFilterFree,
+                        onFilterFreeChange = onModelFilterFreeChange,
+                        filterInputModalities = modelFilterInputModalities,
+                        onToggleInputModality = onToggleInputModality,
+                        filterOutputModalities = modelFilterOutputModalities,
+                        onToggleOutputModality = onToggleOutputModality,
+                        sortBy = modelSortBy,
+                        onSortByChange = onModelSortByChange
+                    )
+                }
+                "硅基流动" -> {
+                    SiliconFlowModelsCard(
+                        models = siliconFlowModels,
+                        isLoading = isLoadingSiliconFlowModels,
+                        onClick = onLoadSiliconFlowModels,
+                        onModelSelected = onModelIdChanged,
+                        searchQuery = siliconFlowModelSearchQuery,
+                        onSearchQueryChange = onSiliconFlowModelSearchQueryChange,
+                        filterType = siliconFlowModelFilterType,
+                        onFilterTypeChange = onSiliconFlowModelFilterTypeChange
+                    )
+                }
+                else -> {
+                    // 没有模型列表功能的供应商
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 48.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        BasicText(
+                            text = "该供应商暂不支持模型列表查询",
+                            style = TextStyle(
+                                fontSize = 14.sp,
+                                color = Color(0xFF999999)
                             )
-                        }
+                        )
                     }
                 }
             }
-            
-            Spacer(modifier = Modifier.height(16.dp))
         }
+
+        Spacer(modifier = Modifier.height(16.dp))
     }
 }
