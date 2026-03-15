@@ -45,6 +45,23 @@ internal class SettingsRepository @Inject constructor(
         )
     }
     
+    // 获取特定供应商的配置，不依赖于当前选中的全局供应商
+    fun getProviderSettingsFlow(providerName: String): Flow<StoredSettings> = combine(
+        settingsDao.getGlobalSettingsFlow(),
+        settingsDao.getProviderSettingsFlow(providerName)
+    ) { globalSettings, providerSettings ->
+        StoredSettings(
+            providerName = providerName,
+            apiKey = providerSettings?.apiKey ?: "",
+            modelId = providerSettings?.modelId ?: getDefaultModelId(providerName),
+            baseUrl = providerSettings?.baseUrl ?: getDefaultBaseUrl(providerName),
+            extraConfig = providerSettings?.extraConfig ?: "",
+            systemPrompt = globalSettings?.systemPrompt ?: "",
+            temperature = globalSettings?.temperature ?: "0.2",
+            maxIterations = globalSettings?.maxIterations ?: "50"
+        )
+    }
+    
     val presetIdFlow: Flow<String> = settingsDao.getGlobalSettingsFlow()
         .map { it?.runtimePresetId ?: "graph-tools-sequential" }
     

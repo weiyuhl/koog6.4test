@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -126,13 +128,17 @@ internal class SettingsViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
     
+    private val _viewedProvider = MutableStateFlow<Provider?>(null)
+    
     init {
         observeSettings()
     }
     
     private fun observeSettings() {
         viewModelScope.launch {
-            settingsRepository.settingsFlow.collect { settings ->
+            _viewedProvider.filterNotNull().flatMapLatest { provider ->
+                settingsRepository.getProviderSettingsFlow(provider.name)
+            }.collect { settings ->
                 val provider = Provider.entries.firstOrNull { 
                     it.name == settings.providerName 
                 }
@@ -199,10 +205,10 @@ internal class SettingsViewModel @Inject constructor(
     }
     
     private fun updateProvider(provider: Provider) {
+        // 设置当前查看的供应商
+        _viewedProvider.value = provider
+        
         viewModelScope.launch {
-            // 切换供应商
-            settingsRepository.updateCurrentProvider(provider.name)
-            
             // 清空余额信息
             _uiState.update {
                 it.copy(
