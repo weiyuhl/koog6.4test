@@ -1,6 +1,7 @@
 package com.lhzkml.codestudio.settings.provider.siliconflow
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -32,6 +33,7 @@ internal fun SiliconFlowModelsCard(
     models: List<com.lhzkml.codestudio.viewmodel.SiliconFlowModelInfo>,
     isLoading: Boolean,
     onClick: () -> Unit,
+    selectedModelId: String = "",
     onModelSelected: (String) -> Unit,
     searchQuery: String = "",
     onSearchQueryChange: (String) -> Unit = {},
@@ -152,6 +154,7 @@ internal fun SiliconFlowModelsCard(
                 items(models) { model ->
                     ModelInfoItem(
                         model = model,
+                        isSelected = model.id == selectedModelId,
                         onSelect = { onModelSelected(model.id) }
                     )
                 }
@@ -167,12 +170,21 @@ internal fun SiliconFlowModelsCard(
 @Composable
 private fun ModelInfoItem(
     model: com.lhzkml.codestudio.viewmodel.SiliconFlowModelInfo,
+    isSelected: Boolean,
     onSelect: () -> Unit
 ) {
+    val backgroundColor = if (isSelected) Color(0xFFE3F2FD) else Color(0xFFF5F5F5)
+    val borderColor = if (isSelected) Color(0xFF2196F3) else Color.Transparent
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFFF5F5F5), androidx.compose.foundation.shape.RoundedCornerShape(4.dp))
+            .background(backgroundColor, androidx.compose.foundation.shape.RoundedCornerShape(4.dp))
+            .border(
+                width = if (isSelected) 1.dp else 0.dp,
+                color = borderColor,
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(4.dp)
+            )
             .clickable(onClick = onSelect)
             .padding(12.dp)
     ) {
@@ -186,8 +198,8 @@ private fun ModelInfoItem(
                     text = model.name ?: model.id,
                     style = TextStyle(
                         fontSize = 14.sp,
-                        color = Color(0xFF333333),
-                        fontWeight = FontWeight.Medium
+                        color = if (isSelected) Color(0xFF1976D2) else Color(0xFF333333),
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                     )
                 )
                 
@@ -204,11 +216,11 @@ private fun ModelInfoItem(
             }
             
             BasicText(
-                text = "选择",
+                text = if (isSelected) "已选中" else "选择",
                 style = TextStyle(
                     fontSize = 12.sp,
-                    color = Color(0xFF2196F3),
-                    fontWeight = FontWeight.Medium
+                    color = if (isSelected) Color(0xFF1976D2) else Color(0xFF2196F3),
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                 )
             )
         }
