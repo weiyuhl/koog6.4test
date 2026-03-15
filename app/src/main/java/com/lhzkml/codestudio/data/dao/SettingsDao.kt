@@ -24,6 +24,9 @@ internal interface SettingsDao {
     @Query("SELECT * FROM settings")
     suspend fun getAllProviderSettings(): List<SettingsEntity>
     
+    @Query("SELECT * FROM settings")
+    fun getAllProviderSettingsFlow(): Flow<List<SettingsEntity>>
+    
     // 全局设置
     @Query("SELECT * FROM global_settings WHERE id = 1")
     fun getGlobalSettingsFlow(): Flow<GlobalSettingsEntity?>

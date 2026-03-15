@@ -10,6 +10,7 @@ internal data class SettingsHomeUiModel(
     val runtimePresetTitle: String,
     val availableProviders: List<ProviderUiModel>,
     val availablePresets: List<PresetUiModel>,
+    val configuredProviders: Set<String>,
     val errors: FormErrors
 )
 
@@ -81,6 +82,7 @@ internal fun SettingsUiModel.toHomeUiModel(errors: FormErrors): SettingsHomeUiMo
             .map { ProviderUiModel(it.name, it.displayName, it.isSupportedOnAndroid) },
         availablePresets = Preset.entries
             .map { PresetUiModel(it.id, it.title, it.description) },
+        configuredProviders = configuredProviders,
         errors = errors
     )
 }

@@ -48,7 +48,6 @@ internal class SettingsRepository @Inject constructor(
     val presetIdFlow: Flow<String> = settingsDao.getGlobalSettingsFlow()
         .map { it?.runtimePresetId ?: "graph-tools-sequential" }
     
-    // 启用的供应商列表
     val enabledProvidersFlow: Flow<Set<String>> = settingsDao.getGlobalSettingsFlow()
         .map { globalSettings ->
             val enabledStr = globalSettings?.enabledProviders ?: ""
@@ -58,6 +57,14 @@ internal class SettingsRepository @Inject constructor(
             } else {
                 enabledStr.split(",").filter { it.isNotBlank() }.toSet()
             }
+        }
+    
+    // 已配置的供应商列表（至少有 API Key 或 Base URL）
+    val configuredProvidersFlow: Flow<Set<String>> = settingsDao.getAllProviderSettingsFlow()
+        .map { settingsList ->
+            settingsList.filter { 
+                it.apiKey.isNotBlank() || (it.baseUrl.isNotBlank() && it.baseUrl != getDefaultBaseUrl(it.providerName))
+            }.map { it.providerName }.toSet()
         }
     
     suspend fun updateSettings(settings: StoredSettings) {

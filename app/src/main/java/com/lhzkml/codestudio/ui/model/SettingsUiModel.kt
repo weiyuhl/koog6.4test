@@ -21,7 +21,8 @@ internal data class SettingsUiModel(
     val maxIterations: String,
     val requiresApiKey: Boolean,
     val requiresBaseUrl: Boolean,
-    val requiresExtraConfig: Boolean
+    val requiresExtraConfig: Boolean,
+    val configuredProviders: Set<String>
 )
 
 internal fun SettingsUiState.toUiModel(): SettingsUiModel {
@@ -44,6 +45,7 @@ internal fun SettingsUiState.toUiModel(): SettingsUiModel {
         maxIterations = maxIterations,
         requiresApiKey = safeProvider.requiresApiKey,
         requiresBaseUrl = false, // 所有供应商都使用可选的 Base URL
-        requiresExtraConfig = safeProvider.extraFieldLabel != null
+        requiresExtraConfig = safeProvider.extraFieldLabel != null,
+        configuredProviders = configuredProviders
     )
 }

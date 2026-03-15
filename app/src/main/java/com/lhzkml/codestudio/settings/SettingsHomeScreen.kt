@@ -10,8 +10,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
@@ -92,6 +94,8 @@ internal fun SettingsHomeScreen(
                 Provider.entries.filter { it.isSupportedOnAndroid }.forEach { provider ->
                     val isEnabled = enabledProviders.contains(provider.name)
                     
+                    val isConfigured = uiModel.configuredProviders.contains(provider.name)
+                    
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -102,14 +106,31 @@ internal fun SettingsHomeScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            BasicText(
-                                text = provider.displayName,
-                                style = TextStyle(
-                                    fontSize = 15.sp,
-                                    color = Color(0xFF333333),
-                                    fontWeight = FontWeight.Medium
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                BasicText(
+                                    text = provider.displayName,
+                                    style = TextStyle(
+                                        fontSize = 15.sp,
+                                        color = Color(0xFF333333),
+                                        fontWeight = FontWeight.Medium
+                                    )
                                 )
-                            )
+                                
+                                if (isConfigured) {
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    BasicText(
+                                        text = "已配置",
+                                        style = TextStyle(
+                                            fontSize = 11.sp,
+                                            color = Color(0xFF10A37F),
+                                            fontWeight = FontWeight.Medium
+                                        ),
+                                        modifier = Modifier
+                                            .background(Color(0xFFE6F4EA), RoundedCornerShape(4.dp))
+                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
                         }
                         
                         Switch(

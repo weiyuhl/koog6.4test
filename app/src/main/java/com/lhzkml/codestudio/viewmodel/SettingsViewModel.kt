@@ -31,6 +31,7 @@ internal data class SettingsUiState(
     val temperature: String = "0.2",
     val maxIterations: String = "50",
     val enabledProviders: Set<String> = emptySet(),
+    val configuredProviders: Set<String> = emptySet(),
     val balanceInfo: com.lhzkml.codestudio.ui.model.BalanceDisplayInfo? = null,
     val isCheckingBalance: Boolean = false,
     val formErrors: FormErrors = FormErrors(),
@@ -161,6 +162,12 @@ internal class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             settingsRepository.enabledProvidersFlow.collect { enabledProviders ->
                 _uiState.update { it.copy(enabledProviders = enabledProviders) }
+            }
+        }
+        
+        viewModelScope.launch {
+            settingsRepository.configuredProvidersFlow.collect { configuredProviders ->
+                _uiState.update { it.copy(configuredProviders = configuredProviders) }
             }
         }
     }
