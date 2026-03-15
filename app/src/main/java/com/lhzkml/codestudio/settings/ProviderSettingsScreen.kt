@@ -138,13 +138,13 @@ internal fun ProviderSettingsScreen(
                     modifier = Modifier
                         .weight(1f)
                         .clickable { selectedTab = index }
-                        .padding(vertical = 10.dp),
+                        .padding(vertical = 16.dp), // 增加垂直内边距使高度更高，更好点击
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     BasicText(
                         text = title,
                         style = TextStyle(
-                            fontSize = 16.sp,
+                            fontSize = 18.sp, // 字号放大到 18.sp
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                             color = if (isSelected) Color(0xFF1976D2) else Color(0xFF666666),
                             textAlign = TextAlign.Center
@@ -152,11 +152,11 @@ internal fun ProviderSettingsScreen(
                     )
                     // 选中指示条
                     if (isSelected) {
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth(0.4f)
-                                .height(2.dp)
+                                .height(3.dp)
                                 .background(Color(0xFF1976D2))
                         )
                     }
