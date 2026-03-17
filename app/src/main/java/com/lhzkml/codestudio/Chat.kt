@@ -35,6 +35,11 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
+import io.github.alexzhirkevich.compottie.Compottie
+import io.github.alexzhirkevich.compottie.LottieCompositionSpec
+import io.github.alexzhirkevich.compottie.rememberLottieComposition
+import io.github.alexzhirkevich.compottie.rememberLottiePainter
+import androidx.compose.foundation.Image
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import kotlinx.coroutines.launch
@@ -141,36 +146,27 @@ internal fun ChatScreen(
 
 @Composable
 private fun EmptyStateView() {
+    val context = LocalContext.current
+    val jsonString = remember {
+        context.assets.open("lottie_loading.json").bufferedReader().use { it.readText() }
+    }
+    val composition by rememberLottieComposition {
+        LottieCompositionSpec.JsonString(jsonString)
+    }
+
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            BasicText(
-                text = "💬",
-                style = TextStyle(
-                    fontSize = 64.sp
-                )
-            )
-            BasicText(
-                text = "开始对话",
-                style = TextStyle(
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color(0xFF333333)
-                )
-            )
-            BasicText(
-                text = "在下方输入消息",
-                style = TextStyle(
-                    fontSize = 14.sp,
-                    color = Color(0xFF999999)
-                )
-            )
-        }
+        Image(
+            modifier = Modifier.size(128.dp),
+            painter = rememberLottiePainter(
+                composition = composition,
+                iterations = Compottie.IterateForever,
+                speed = 0.6f
+            ),
+            contentDescription = null
+        )
     }
 }
 

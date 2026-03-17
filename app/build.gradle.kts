@@ -109,6 +109,11 @@ dependencies {
     implementation("io.noties.markwon:inline-parser:4.6.2")  // 内联解析器（LaTeX 需要）
     implementation("io.noties:prism4j:2.0.0")
     
+    // Lottie 动画支持 (与 Kai 源码完全对齐)
+    implementation(libs.compottie)
+    implementation(libs.compottie.dot)
+    implementation(libs.compottie.resources)
+    
     kapt(libs.hilt.compiler)
     kapt(libs.kotlin.metadata.jvm)
     ksp(libs.room.compiler)
