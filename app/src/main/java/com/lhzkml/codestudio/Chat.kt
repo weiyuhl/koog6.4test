@@ -148,7 +148,7 @@ internal fun ChatScreen(
 private fun EmptyStateView() {
     val context = LocalContext.current
     val jsonString = remember {
-        context.assets.open("lottie_loading.json").bufferedReader().use { it.readText() }
+        context.assets.open("Coding_Slide.json").bufferedReader().use { it.readText() }
     }
     val composition by rememberLottieComposition {
         LottieCompositionSpec.JsonString(jsonString)
