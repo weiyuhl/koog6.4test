@@ -159,7 +159,7 @@ private fun EmptyStateView() {
         contentAlignment = Alignment.Center
     ) {
         Image(
-            modifier = Modifier.size(128.dp),
+            modifier = Modifier.size(240.dp),
             painter = rememberLottiePainter(
                 composition = composition,
                 iterations = Compottie.IterateForever,
